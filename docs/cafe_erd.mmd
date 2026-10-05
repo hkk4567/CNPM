@@ -1,0 +1,150 @@
+erDiagram
+    %% MODULE: BÁN HÀNG
+    DanhMuc {
+        int ma_danh_muc PK
+        string ten_danh_muc
+    }
+
+    SanPham {
+        int ma_san_pham PK
+        int ma_danh_muc FK
+        string ten_san_pham
+        decimal gia_ban
+        string trang_thai "con_ban | ngung_ban"
+    }
+
+    HoaDon {
+        int ma_hoa_don PK
+        int ma_khach_hang FK "NULL neu khach vang lai"
+        int ma_nhan_vien FK "nhan vien nhap order"
+        int so_thu_tu "reset moi ngay"
+        datetime thoi_gian_tao
+        string trang_thai "dang_pha_che | da_phuc_vu | da_thanh_toan | huy"
+        string phuong_thuc_thanh_toan "tien_mat | chuyen_khoan | vi"
+        decimal tong_tien
+    }
+
+    ChiTietHoaDon {
+        int ma_chi_tiet PK
+        int ma_hoa_don FK
+        int ma_san_pham FK
+        int ma_khuyen_mai FK "NULL neu khong giam"
+        int so_luong
+        decimal don_gia
+        decimal giam_gia
+        string ghi_chu "it duong, khong da..."
+    }
+
+    %% MODULE: KHUYẾN MÃI
+    KhuyenMai {
+        int ma_khuyen_mai PK
+        string ten_khuyen_mai
+        string loai_giam "phan_tram | so_tien"
+        decimal gia_tri_giam
+        datetime ngay_bat_dau
+        datetime ngay_ket_thuc
+    }
+
+    KhuyenMaiSanPham {
+        int ma_khuyen_mai PK, FK
+        int ma_san_pham PK, FK
+    }
+
+    %% MODULE: KHÁCH HÀNG
+    KhachHang {
+        int ma_khach_hang PK
+        string ten_khach_hang
+        string so_dien_thoai "UNIQUE"
+        int diem_tich_luy
+    }
+
+    %% MODULE: NHÂN SỰ
+    CaLamViec {
+        int ma_ca PK
+        string ten_ca
+        time thoi_gian_bat_dau
+        time thoi_gian_ket_thuc
+    }
+
+    NhanVien {
+        int ma_nhan_vien PK
+        string ho_ten
+        string chuc_vu
+        string so_dien_thoai
+        string trang_thai "dang_lam | nghi_viec"
+    }
+
+    PhanCong {
+        int ma_nhan_vien PK, FK
+        int ma_ca PK, FK
+        date ngay_lam PK
+    }
+
+    TaiKhoan {
+        int ma_tai_khoan PK
+        int ma_nhan_vien FK
+        string ten_dang_nhap "UNIQUE"
+        string mat_khau_hash
+        string quyen_truy_cap
+    }
+
+    %% MODULE: KHO & NHẬP HÀNG
+    NhaCungCap {
+        int ma_ncc PK
+        string ten_ncc
+        string so_dien_thoai
+        string dia_chi
+    }
+
+    NguyenLieu {
+        int ma_nguyen_lieu PK
+        string ten_nguyen_lieu
+        string don_vi_tinh
+        decimal so_luong_ton
+        decimal muc_ton_toi_thieu "canh bao khi ton <= muc nay"
+    }
+
+    CongThuc {
+        int ma_san_pham PK, FK
+        int ma_nguyen_lieu PK, FK
+        decimal dinh_luong "dung cho 1 don vi san pham"
+    }
+
+    PhieuNhap {
+        int ma_phieu_nhap PK
+        int ma_ncc FK
+        int ma_nhan_vien FK
+        datetime ngay_nhap
+        decimal tong_tien_nhap
+    }
+
+    ChiTietNhap {
+        int ma_phieu_nhap PK, FK
+        int ma_nguyen_lieu PK, FK
+        decimal so_luong_nhap
+        decimal don_gia_nhap
+    }
+
+    %% RELATIONSHIPS
+    DanhMuc ||--o{ SanPham : "chua"
+    HoaDon ||--|{ ChiTietHoaDon : "gom"
+    SanPham ||--o{ ChiTietHoaDon : "nam_trong"
+
+    KhuyenMai ||--o{ KhuyenMaiSanPham : "ap_dung"
+    SanPham ||--o{ KhuyenMaiSanPham : "duoc_giam"
+    KhuyenMai |o--o{ ChiTietHoaDon : "ap_dung_cho"
+
+    KhachHang |o--o{ HoaDon : "thanh_toan"
+    NhanVien ||--o{ HoaDon : "nhap_order"
+
+    NhanVien ||--o{ PhanCong : "duoc_xep"
+    CaLamViec ||--o{ PhanCong : "co"
+    NhanVien ||--o| TaiKhoan : "so_huu"
+    NhanVien ||--o{ PhieuNhap : "thuc_hien"
+
+    SanPham ||--o{ CongThuc : "gom"
+    NguyenLieu ||--o{ CongThuc : "dung_trong"
+
+    NhaCungCap ||--o{ PhieuNhap : "cung_cap"
+    PhieuNhap ||--|{ ChiTietNhap : "gom"
+    NguyenLieu ||--o{ ChiTietNhap : "nhap_vao"

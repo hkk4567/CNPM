@@ -1,0 +1,1 @@
+// Phân trang dùng chung
