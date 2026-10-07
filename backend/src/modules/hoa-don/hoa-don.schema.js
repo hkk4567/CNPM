@@ -33,20 +33,39 @@ const maDuong = ten => z.coerce.number({ error: `${ten} phải là số nguyên 
 const ma = z.object({ ma: maDuong('ma') });
 const maVaChiTiet = z.object({ ma: maDuong('ma'), ma_chi_tiet: maDuong('ma_chi_tiet') });
 
-// POS-04: sửa dòng. ghi_chu = null hoặc rỗng nghĩa là xóa ghi chú.
+// "Đã làm": số ly (trong phần bị bỏ) đã pha xong nên nguyên liệu KHÔNG được trả lại kho. Mặc định 0 = chưa làm = trả lại hết.
+const soDaLam = z.number({ error: 'da_lam phải là số nguyên từ 0 đến 99' }).int('da_lam phải là số nguyên từ 0 đến 99')
+  .min(0, 'da_lam phải từ 0 đến 99').max(99, 'da_lam phải từ 0 đến 99');
+const daLamTheoDong = z.array(z.object({
+  ma_chi_tiet: soNguyen('ma_chi_tiet').positive('ma_chi_tiet phải là số nguyên dương'),
+  so_luong: soDaLam,
+}), { error: 'da_lam phải là mảng các {ma_chi_tiet, so_luong}' }).max(50, 'da_lam tối đa 50 dòng');
+
+// POS-04: sửa dòng. ghi_chu = null hoặc rỗng nghĩa là xóa ghi chú. da_lam chỉ dùng khi GIẢM số lượng.
 const suaDong = z.object({
   so_luong: dong.shape.so_luong,
   ghi_chu: dong.shape.ghi_chu,
+  da_lam: soDaLam,
 }).partial().refine(o => Object.keys(o).length > 0, { error: 'Cần ít nhất một trường để sửa (so_luong hoặc ghi_chu)' });
 
 // POS-07
 const doiTrangThai = z.object({
   trang_thai_moi: z.enum(['dang_pha_che', 'da_phuc_vu', 'da_thanh_toan', 'huy'], { error: 'trang_thai_moi phải là dang_pha_che, da_phuc_vu, da_thanh_toan hoặc huy' }),
+  da_lam: daLamTheoDong.optional(), // chỉ dùng khi trang_thai_moi = huy
 });
+
+// POS-05: DELETE /dong/:ma_chi_tiet?da_lam=2 (số ly của dòng đã làm xong)
+const xoaDongQuery = z.object({
+  da_lam: z.coerce.number({ error: 'da_lam phải là số nguyên từ 0 đến 99' }).int('da_lam phải là số nguyên từ 0 đến 99')
+    .min(0, 'da_lam phải từ 0 đến 99').max(99, 'da_lam phải từ 0 đến 99').optional(),
+});
+
+// POS-09
+const huy = z.object({ da_lam: daLamTheoDong.optional() });
 
 // POS-08
 const thanhToan = z.object({
   phuong_thuc_thanh_toan: z.enum(['tien_mat', 'chuyen_khoan', 'vi'], { error: 'phuong_thuc_thanh_toan phải là tien_mat, chuyen_khoan hoặc vi' }),
 });
 
-module.exports = { taoOrder, danhSachQuery, dong, ma, maVaChiTiet, suaDong, doiTrangThai, thanhToan };
+module.exports = { taoOrder, danhSachQuery, dong, ma, maVaChiTiet, suaDong, doiTrangThai, xoaDongQuery, huy, thanhToan };

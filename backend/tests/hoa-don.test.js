@@ -1,5 +1,6 @@
-// Test hoa-don: POS-02 (tạo order), POS-10 (danh sách order). Cần MySQL + dữ liệu mẫu (npm run db:init).
-// Dùng sản phẩm/nguyên liệu/danh mục riêng tên TEST_HD_* để không đụng tồn kho mẫu; tự dọn dữ liệu đã tạo.
+// Test hoa-don: POS-02 (tạo order, TRỪ KHO NGAY khi gọi), POS-10 (danh sách order). Cần MySQL + dữ liệu mẫu (npm run db:init).
+// Dùng sản phẩm/nguyên liệu/danh mục riêng tên TEST_HD_* và KHÔNG đặt món có công thức của dữ liệu mẫu (vì giờ gọi món là trừ kho thật,
+// dọn order không hoàn lại tồn kho mẫu). Mỗi file test chỉ đếm/khẳng định trên dữ liệu của chính mình.
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'khoa-chi-dung-cho-test';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -11,8 +12,8 @@ const { taoApp } = require('../src/app');
 const app = taoApp();
 const token = {};
 const taoRa = []; // mã các hóa đơn do test tạo, để dọn
-let spTest; let nlTest; let dmTest;
-let nvRieng; // nhân viên + tài khoản RIÊNG của file này: đếm hóa đơn theo nhân viên này nên không bị file test khác chạy song song làm lệch
+let spCoCT; let spKhongCT; let nl; let dm; // spCoCT: 10.000đ, 20g nguyên liệu/ly; spKhongCT: 25.000đ, không công thức
+let nvRieng; // nhân viên + tài khoản RIÊNG: đếm hóa đơn theo nhân viên này nên không bị file test khác chạy song song làm lệch
 
 const goi = (pt, duong, ten) => {
   const r = request(app)[pt](duong);
@@ -23,8 +24,9 @@ const datOrder = async (ten, body) => {
   if (res.status === 201) taoRa.push(res.body.data.ma_hoa_don);
   return res;
 };
-// Chỉ đếm hóa đơn do nhân viên riêng của file này tạo (đếm toàn bảng sẽ sai khi test khác chạy song song)
 const demHoaDon = async () => (await pool.query('SELECT COUNT(*) AS n FROM HoaDon WHERE ma_nhan_vien = ?', [nvRieng]))[0][0].n;
+const datTon = n => pool.query('UPDATE NguyenLieu SET so_luong_ton = ? WHERE ma_nguyen_lieu = ?', [n, nl]);
+const ton = async () => Number((await pool.query('SELECT so_luong_ton FROM NguyenLieu WHERE ma_nguyen_lieu = ?', [nl]))[0][0].so_luong_ton);
 
 async function donDep() {
   await pool.query("DELETE c FROM ChiTietHoaDon c JOIN HoaDon h ON h.ma_hoa_don = c.ma_hoa_don JOIN NhanVien n ON n.ma_nhan_vien = h.ma_nhan_vien WHERE n.ho_ten = 'TEST_HD_NV'");
@@ -50,10 +52,11 @@ before(async () => {
   nvRieng = (await pool.query("INSERT INTO NhanVien (ho_ten, chuc_vu) VALUES ('TEST_HD_NV', 'test')"))[0].insertId;
   await pool.query("INSERT INTO TaiKhoan (ma_nhan_vien, ten_dang_nhap, mat_khau_hash, quyen_truy_cap) VALUES (?, 'test_hd_nv', ?, 'nhan_vien')", [nvRieng, bcrypt.hashSync('Test@12345', 10)]);
   token.rieng = (await request(app).post('/api/auth/dang-nhap').send({ ten_dang_nhap: 'test_hd_nv', mat_khau: 'Test@12345' })).body.data.token;
-  dmTest = (await pool.query("INSERT INTO DanhMuc (ten_danh_muc) VALUES ('TEST_HD_DM')"))[0].insertId;
-  spTest = (await pool.query('INSERT INTO SanPham (ma_danh_muc, ten_san_pham, gia_ban) VALUES (?, ?, 10000)', [dmTest, 'TEST_HD_SP']))[0].insertId;
-  nlTest = (await pool.query("INSERT INTO NguyenLieu (ten_nguyen_lieu, don_vi_tinh, so_luong_ton) VALUES ('TEST_HD_NL', 'g', 30)"))[0].insertId;
-  await pool.query('INSERT INTO CongThuc (ma_san_pham, ma_nguyen_lieu, dinh_luong) VALUES (?, ?, 20)', [spTest, nlTest]);
+  dm = (await pool.query("INSERT INTO DanhMuc (ten_danh_muc) VALUES ('TEST_HD_DM')"))[0].insertId;
+  spCoCT = (await pool.query('INSERT INTO SanPham (ma_danh_muc, ten_san_pham, gia_ban) VALUES (?, ?, 10000)', [dm, 'TEST_HD_SP']))[0].insertId;
+  spKhongCT = (await pool.query('INSERT INTO SanPham (ma_danh_muc, ten_san_pham, gia_ban) VALUES (?, ?, 25000)', [dm, 'TEST_HD_SPK']))[0].insertId;
+  nl = (await pool.query("INSERT INTO NguyenLieu (ten_nguyen_lieu, don_vi_tinh, so_luong_ton) VALUES ('TEST_HD_NL', 'g', 1000)"))[0].insertId;
+  await pool.query('INSERT INTO CongThuc (ma_san_pham, ma_nguyen_lieu, dinh_luong) VALUES (?, ?, 20)', [spCoCT, nl]);
 });
 after(async () => { await donDep(); await pool.end(); });
 
@@ -62,8 +65,8 @@ test('tạo order: nhân viên lấy từ token, chụp lại giá, mỗi dòng 
   const res = await datOrder('nhanvien', {
     ma_nhan_vien: 1, // cố tình gửi: phải bị bỏ qua, nhân viên lấy từ token
     items: [
-      { ma_san_pham: 1, so_luong: 2, ghi_chu: '  ít đường  ' },
-      { ma_san_pham: 1, so_luong: 1, ghi_chu: 'bình thường' }, // cùng sản phẩm, ghi chú khác
+      { ma_san_pham: spKhongCT, so_luong: 2, ghi_chu: '  ít đường  ' },
+      { ma_san_pham: spKhongCT, so_luong: 1, ghi_chu: 'bình thường' }, // cùng sản phẩm, ghi chú khác
       { ma_san_pham: 7, so_luong: 1 },
     ],
   });
@@ -80,33 +83,33 @@ test('tạo order: nhân viên lấy từ token, chụp lại giá, mỗi dòng 
   assert.equal(hd.chi_tiet[0].giam_gia, 0);
   assert.equal(hd.chi_tiet[0].ma_khuyen_mai, null);
   assert.equal(hd.chi_tiet[0].thanh_tien, 50000);
-  assert.equal(hd.tong_tien_tam_tinh, 2 * 25000 + 25000 + 45000);
-
+  assert.equal(hd.tong_tien_tam_tinh, 3 * 25000 + 45000);
+  assert.deepEqual(hd.canh_bao_kho, [], 'món không công thức: không đụng kho nên không có cảnh báo');
 });
 
 test('tạo order: giá được chụp lại, đổi giá món sau đó không làm đổi dòng đã đặt', async () => {
-  // Dùng sản phẩm riêng của test để không ảnh hưởng test khác chạy song song
-  const res = await datOrder('nhanvien', { items: [{ ma_san_pham: spTest, so_luong: 1 }] });
+  await datTon(1000);
+  const res = await datOrder('nhanvien', { items: [{ ma_san_pham: spCoCT, so_luong: 1 }] });
   assert.equal(res.status, 201);
   assert.equal(res.body.data.chi_tiet[0].don_gia, 10000);
-  await pool.query('UPDATE SanPham SET gia_ban = 77000 WHERE ma_san_pham = ?', [spTest]);
+  await pool.query('UPDATE SanPham SET gia_ban = 77000 WHERE ma_san_pham = ?', [spCoCT]);
   const [rows] = await pool.query('SELECT don_gia FROM ChiTietHoaDon WHERE ma_chi_tiet = ?', [res.body.data.chi_tiet[0].ma_chi_tiet]);
   assert.equal(rows[0].don_gia, 10000);
-  await pool.query('UPDATE SanPham SET gia_ban = 10000 WHERE ma_san_pham = ?', [spTest]);
+  await pool.query('UPDATE SanPham SET gia_ban = 10000 WHERE ma_san_pham = ?', [spCoCT]);
 });
 
 test('tạo order: khách thành viên hoặc khách vãng lai (null)', async () => {
-  const cokhach = await datOrder('quanly', { ma_khach_hang: 1, items: [{ ma_san_pham: 2, so_luong: 1 }] });
+  const cokhach = await datOrder('quanly', { ma_khach_hang: 1, items: [{ ma_san_pham: spKhongCT, so_luong: 1 }] });
   assert.equal(cokhach.status, 201);
   assert.equal(cokhach.body.data.ten_khach_hang, 'Nguyễn Minh Anh');
   assert.equal(cokhach.body.data.ma_nhan_vien, 2);
-  const vanglai = await datOrder('quanly', { ma_khach_hang: null, items: [{ ma_san_pham: 2, so_luong: 1 }] });
+  const vanglai = await datOrder('quanly', { ma_khach_hang: null, items: [{ ma_san_pham: spKhongCT, so_luong: 1 }] });
   assert.equal(vanglai.status, 201);
   assert.equal(vanglai.body.data.ten_khach_hang, null);
 });
 
 test('tạo order: so_thu_tu không bao giờ trùng khi 8 order được tạo cùng lúc', async () => {
-  const kq = await Promise.all(Array.from({ length: 8 }, () => datOrder('nhanvien', { items: [{ ma_san_pham: 2, so_luong: 1 }] })));
+  const kq = await Promise.all(Array.from({ length: 8 }, () => datOrder('nhanvien', { items: [{ ma_san_pham: spKhongCT, so_luong: 1 }] })));
   for (const r of kq) assert.equal(r.status, 201, JSON.stringify(r.body));
   const so = kq.map(r => r.body.data.so_thu_tu);
   assert.equal(new Set(so).size, 8, `bị trùng so_thu_tu: ${so}`);
@@ -140,7 +143,7 @@ test('tạo order: kiểm tra đầu vào', async () => {
 
 test('tạo order: sản phẩm ngừng bán -> 400, không tồn tại -> 404, khách không tồn tại -> 404, không tạo gì', async () => {
   const truoc = await demHoaDon();
-  const ngung = await goi('post', '/api/hoa-don', 'rieng').send({ items: [{ ma_san_pham: 1, so_luong: 1 }, { ma_san_pham: 8, so_luong: 1 }] });
+  const ngung = await goi('post', '/api/hoa-don', 'rieng').send({ items: [{ ma_san_pham: spKhongCT, so_luong: 1 }, { ma_san_pham: 8, so_luong: 1 }] });
   assert.equal(ngung.status, 400);
   assert.equal(ngung.body.loi, 'SAN_PHAM_NGUNG_BAN');
   assert.match(ngung.body.thong_bao, /Croissant/);
@@ -148,37 +151,67 @@ test('tạo order: sản phẩm ngừng bán -> 400, không tồn tại -> 404, 
   const khongCo = await goi('post', '/api/hoa-don', 'rieng').send({ items: [{ ma_san_pham: 99999, so_luong: 1 }] });
   assert.equal(khongCo.status, 404);
 
-  const khach = await goi('post', '/api/hoa-don', 'rieng').send({ ma_khach_hang: 99999, items: [{ ma_san_pham: 1, so_luong: 1 }] });
+  const khach = await goi('post', '/api/hoa-don', 'rieng').send({ ma_khach_hang: 99999, items: [{ ma_san_pham: spKhongCT, so_luong: 1 }] });
   assert.equal(khach.status, 404);
   assert.match(khach.body.thong_bao, /khách hàng/);
   assert.equal(await demHoaDon(), truoc);
 });
 
-test('tạo order: không đủ nguyên liệu -> 409 kèm số liệu, tính gộp mọi dòng, không tạo hóa đơn', async () => {
-  const truoc = await demHoaDon();
-  // tồn 30g, mỗi ly cần 20g: 1 ly đủ
-  const du = await datOrder('rieng', { items: [{ ma_san_pham: spTest, so_luong: 1 }] });
-  assert.equal(du.status, 201);
+// ---------- Kho: TRỪ NGAY khi gọi món ----------
+test('tạo order: trừ kho ngay lúc gọi, đúng số ly; cảnh báo khi tồn xuống tới mức tối thiểu', async () => {
+  await datTon(100);
+  await pool.query('UPDATE NguyenLieu SET muc_ton_toi_thieu = 70 WHERE ma_nguyen_lieu = ?', [nl]);
+  try {
+    const res = await datOrder('rieng', { items: [{ ma_san_pham: spCoCT, so_luong: 2 }] }); // 40g
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    assert.equal(await ton(), 60, 'gọi 2 ly -> trừ 40g NGAY, chưa cần thanh toán');
+    assert.deepEqual(res.body.data.canh_bao_kho, [
+      { ma_nguyen_lieu: nl, ten_nguyen_lieu: 'TEST_HD_NL', don_vi_tinh: 'g', so_luong_ton: 60, muc_ton_toi_thieu: 70 }]);
+  } finally {
+    await pool.query('UPDATE NguyenLieu SET muc_ton_toi_thieu = 0 WHERE ma_nguyen_lieu = ?', [nl]);
+  }
+});
 
+test('tạo order: không đủ nguyên liệu -> 409 kèm số liệu, tính gộp mọi dòng, không trừ gì, không tạo hóa đơn', async () => {
+  const truoc = await demHoaDon();
   // 2 dòng, mỗi dòng 1 ly (20g, đủ nếu xét riêng) nhưng tổng 40g > 30g
-  const gop = await goi('post', '/api/hoa-don', 'rieng').send({ items: [{ ma_san_pham: spTest, so_luong: 1 }, { ma_san_pham: spTest, so_luong: 1, ghi_chu: 'ly 2' }] });
+  await datTon(30);
+  const gop = await goi('post', '/api/hoa-don', 'rieng').send({ items: [{ ma_san_pham: spCoCT, so_luong: 1 }, { ma_san_pham: spCoCT, so_luong: 1, ghi_chu: 'ly 2' }] });
   assert.equal(gop.status, 409);
   assert.equal(gop.body.loi, 'KHONG_DU_NGUYEN_LIEU');
   assert.equal(gop.body.thong_bao, 'Không đủ nguyên liệu: TEST_HD_NL cần 40 g, còn 30 g (thiếu 10 g)');
   assert.deepEqual(
     { can: gop.body.chi_tiet[0].can_dung, ton: gop.body.chi_tiet[0].so_luong_ton, thieu: gop.body.chi_tiet[0].con_thieu },
     { can: 40, ton: 30, thieu: 10 });
+  assert.equal(await ton(), 30, 'báo thiếu thì không trừ gì');
 
   // đúng ví dụ của người dùng: cần 20g mà chỉ còn 4g
-  await pool.query('UPDATE NguyenLieu SET so_luong_ton = 4 WHERE ma_nguyen_lieu = ?', [nlTest]);
-  const bon = await goi('post', '/api/hoa-don', 'rieng').send({ items: [{ ma_san_pham: spTest, so_luong: 1 }] });
+  await datTon(4);
+  const bon = await goi('post', '/api/hoa-don', 'rieng').send({ items: [{ ma_san_pham: spCoCT, so_luong: 1 }] });
   assert.equal(bon.status, 409);
   assert.equal(bon.body.thong_bao, 'Không đủ nguyên liệu: TEST_HD_NL cần 20 g, còn 4 g (thiếu 16 g)');
-  assert.equal(await demHoaDon(), truoc + 1, 'chỉ order đủ nguyên liệu ở trên được tạo');
 
-  // tồn kho không bị trừ khi chỉ tạo order (trừ lúc thanh toán)
-  const [nl] = await pool.query('SELECT so_luong_ton FROM NguyenLieu WHERE ma_nguyen_lieu = ?', [nlTest]);
-  assert.equal(nl[0].so_luong_ton, 4);
+  // tất cả hoặc không gì: món không công thức đi cùng cũng không được tạo
+  const kem = await goi('post', '/api/hoa-don', 'rieng').send({ items: [{ ma_san_pham: spKhongCT, so_luong: 1 }, { ma_san_pham: spCoCT, so_luong: 1 }] });
+  assert.equal(kem.status, 409);
+  assert.equal(await demHoaDon(), truoc, 'order bị từ chối thì không tạo hóa đơn nào');
+
+  await datTon(100);
+  const du = await datOrder('rieng', { items: [{ ma_san_pham: spCoCT, so_luong: 1 }] });
+  assert.equal(du.status, 201);
+  assert.equal(await ton(), 80);
+  assert.equal(await demHoaDon(), truoc + 1);
+});
+
+test('tạo order: hai order đồng thời cùng nguyên liệu, kho chỉ đủ cho một -> đúng một thành công, tồn không âm', async () => {
+  await datTon(100);
+  const [a, b] = await Promise.all([
+    datOrder('rieng', { items: [{ ma_san_pham: spCoCT, so_luong: 3 }] }), // 60g
+    datOrder('rieng', { items: [{ ma_san_pham: spCoCT, so_luong: 3 }] }), // 60g
+  ]);
+  assert.deepEqual([a.status, b.status].sort(), [201, 409], `${a.status} ${b.status}`);
+  assert.equal((a.status === 409 ? a : b).body.loi, 'KHONG_DU_NGUYEN_LIEU');
+  assert.equal(await ton(), 40, '100 - 60: chỉ trừ một lần, không âm');
 });
 
 test('tạo order: chưa đăng nhập -> 401', async () => {

@@ -1,5 +1,6 @@
 // Test POS-08 (thanh toán) và POS-11 (xem/in hóa đơn). Dữ liệu riêng TEST_TT_*: không đụng kho/khách mẫu.
 // Sản phẩm TEST_TT_SP (10.000đ): công thức 20g NL1 + 5g NL2 mỗi ly. NL1 tồn 100g (mức tối thiểu 70g), NL2 tồn 50g.
+// QUY TẮC KHO MỚI: kho đã bị trừ từ lúc GỌI MÓN, nên thanh toán KHÔNG trừ và KHÔNG kiểm tra kho nữa.
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'khoa-chi-dung-cho-test';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -61,10 +62,15 @@ before(async () => {
 after(async () => { await donDep(); await pool.end(); });
 
 // ---------- POS-08: thanh toán ----------
-test('thanh toán: chốt tổng từ các dòng (kể cả sau khi sửa), cộng điểm, trừ kho, cảnh báo sắp hết', async () => {
+test('thanh toán: chốt tổng từ các dòng (kể cả sau khi sửa), cộng điểm, KHÔNG đụng kho (đã trừ lúc gọi)', async () => {
   await datTon(100, 50); await datDiem(0);
   const hd = await taoOrder([{ ma_san_pham: sp, so_luong: 1 }, { ma_san_pham: 7, so_luong: 1 }], kh); // 10.000 + 45.000
-  await goi('patch', `/api/hoa-don/${hd.ma_hoa_don}/dong/${hd.chi_tiet[0].ma_chi_tiet}`).send({ so_luong: 2 }); // đổi thành 2 ly: 20.000 + 45.000
+  assert.equal(await ton(nl1), 80, 'gọi 1 ly -> trừ 20g NGAY');
+  assert.equal(await ton(nl2), 45);
+  const sua = await goi('patch', `/api/hoa-don/${hd.ma_hoa_don}/dong/${hd.chi_tiet[0].ma_chi_tiet}`).send({ so_luong: 2 }); // 20.000 + 45.000
+  assert.equal(await ton(nl1), 60, 'tăng lên 2 ly -> trừ thêm 20g');
+  assert.deepEqual(sua.body.data.canh_bao_kho, [{ ma_nguyen_lieu: nl1, ten_nguyen_lieu: 'TEST_TT_NL1', don_vi_tinh: 'g', so_luong_ton: 60, muc_ton_toi_thieu: 70 }],
+    'cảnh báo sắp hết xuất hiện lúc GỌI MÓN: NL1 còn 60g <= mức 70g; NL2 thì chưa');
 
   const res = await tra(hd.ma_hoa_don, 'chuyen_khoan');
   assert.equal(res.status, 200, JSON.stringify(res.body));
@@ -74,13 +80,12 @@ test('thanh toán: chốt tổng từ các dòng (kể cả sau khi sửa), cộ
   assert.equal(d.hoa_don.tong_tien, 65000);
   assert.equal(d.diem_cong, 6, 'floor(65.000 / 10.000)');
   assert.equal(d.diem_hien_tai, 6);
-  assert.equal(await ton(nl1), 60, '100 - 2 ly x 20g');
-  assert.equal(await ton(nl2), 40, '50 - 2 ly x 5g');
-  assert.deepEqual(d.canh_bao_kho, [{ ma_nguyen_lieu: nl1, ten_nguyen_lieu: 'TEST_TT_NL1', don_vi_tinh: 'g', so_luong_ton: 60, muc_ton_toi_thieu: 70 }],
-    'chỉ NL1 (60g <= mức 70g) bị cảnh báo; NL2 thì chưa');
+  assert.equal(d.canh_bao_kho, undefined, 'thanh toán không còn liên quan tới kho');
+  assert.equal(await ton(nl1), 60, 'thanh toán không trừ thêm');
+  assert.equal(await ton(nl2), 40);
 
-  const [[dong]] = [(await pool.query('SELECT trang_thai, phuong_thuc_thanh_toan, tong_tien FROM HoaDon WHERE ma_hoa_don = ?', [hd.ma_hoa_don]))[0]];
-  assert.deepEqual({ ...dong, tong_tien: Number(dong.tong_tien) }, { trang_thai: 'da_thanh_toan', phuong_thuc_thanh_toan: 'chuyen_khoan', tong_tien: 65000 });
+  const [rows] = await pool.query('SELECT trang_thai, phuong_thuc_thanh_toan, tong_tien FROM HoaDon WHERE ma_hoa_don = ?', [hd.ma_hoa_don]);
+  assert.deepEqual({ ...rows[0], tong_tien: Number(rows[0].tong_tien) }, { trang_thai: 'da_thanh_toan', phuong_thuc_thanh_toan: 'chuyen_khoan', tong_tien: 65000 });
 });
 
 test('thanh toán: mức giảm của dòng được trừ vào tổng; ba phương thức đều dùng được; điểm cộng dồn', async () => {
@@ -99,14 +104,13 @@ test('thanh toán: mức giảm của dòng được trừ vào tổng; ba phư�
   assert.equal((await tra(b.ma_hoa_don, 'chuyen_khoan')).body.data.hoa_don.phuong_thuc_thanh_toan, 'chuyen_khoan');
 });
 
-test('thanh toán: khách vãng lai không có điểm; sản phẩm chưa có công thức không đụng kho; làm tròn xuống', async () => {
+test('thanh toán: khách vãng lai không có điểm; làm tròn xuống', async () => {
   await datTon(100, 50);
   const hd = await taoOrder([{ ma_san_pham: 7, so_luong: 1 }]); // 45.000, không công thức, không khách
   const res = await tra(hd.ma_hoa_don);
   assert.equal(res.status, 200);
   assert.equal(res.body.data.diem_cong, 0);
   assert.equal(res.body.data.diem_hien_tai, null);
-  assert.deepEqual(res.body.data.canh_bao_kho, []);
   assert.equal(await ton(nl1), 100);
 
   await datDiem(0);
@@ -128,26 +132,29 @@ test('thanh toán: kiểm tra đầu vào; hóa đơn không tồn tại; chưa 
   assert.equal((await tra(99999999)).status, 404);
   assert.equal((await goi('post', '/api/hoa-don/abc/thanh-toan').send({ phuong_thuc_thanh_toan: 'vi' })).status, 400);
   assert.equal((await tra(hd.ma_hoa_don, 'vi', null)).status, 401);
-  const [[{ trang_thai }]] = [(await pool.query('SELECT trang_thai FROM HoaDon WHERE ma_hoa_don = ?', [hd.ma_hoa_don]))[0]];
-  assert.equal(trang_thai, 'dang_pha_che', 'đầu vào sai thì hóa đơn không đổi');
+  const [rows] = await pool.query('SELECT trang_thai FROM HoaDon WHERE ma_hoa_don = ?', [hd.ma_hoa_don]);
+  assert.equal(rows[0].trang_thai, 'dang_pha_che', 'đầu vào sai thì hóa đơn không đổi');
 });
 
-test('thanh toán hai lần: lần 2 bị 409, kho và điểm không bị tính lại', async () => {
+test('thanh toán hai lần: lần 2 bị 409; kho giữ nguyên số đã trừ lúc gọi, điểm không bị cộng lại', async () => {
   await datTon(100, 50); await datDiem(0);
-  const hd = await taoOrder([{ ma_san_pham: sp, so_luong: 1 }], kh); // 10.000 -> 1 điểm, trừ 20g/5g
+  const hd = await taoOrder([{ ma_san_pham: sp, so_luong: 1 }], kh); // gọi: trừ 20g/5g
+  assert.equal(await ton(nl1), 80);
   assert.equal((await tra(hd.ma_hoa_don)).status, 200);
   const lan2 = await tra(hd.ma_hoa_don);
   assert.equal(lan2.status, 409);
   assert.equal(lan2.body.loi, 'HOA_DON_DA_DONG');
-  assert.equal(await ton(nl1), 80);
+  assert.equal(await ton(nl1), 80, 'trả tiền không đổi kho');
   assert.equal(await ton(nl2), 45);
   assert.equal(await diemKhach(), 1);
 });
 
-test('đã hủy thì không thanh toán được; không đụng kho, không cộng điểm', async () => {
+test('đã hủy thì không thanh toán được; hủy đã trả nguyên liệu lúc hủy, không cộng điểm', async () => {
   await datTon(100, 50); await datDiem(0);
   const hd = await taoOrder([{ ma_san_pham: sp, so_luong: 2 }], kh);
+  assert.equal(await ton(nl1), 60);
   await goi('post', `/api/hoa-don/${hd.ma_hoa_don}/huy`);
+  assert.equal(await ton(nl1), 100, 'hủy order chưa làm: trả đủ nguyên liệu');
   const res = await tra(hd.ma_hoa_don);
   assert.equal(res.status, 409);
   assert.equal(res.body.loi, 'HOA_DON_DA_DONG');
@@ -155,61 +162,28 @@ test('đã hủy thì không thanh toán được; không đụng kho, không c�
   assert.equal(await diemKhach(), 0);
 });
 
-test('thanh toán khi kho đã tụt: 409 KHONG_DU_NGUYEN_LIEU, hóa đơn vẫn mở, kho và điểm giữ nguyên; bổ sung kho thì trả được', async () => {
-  await datTon(100, 50); await datDiem(0);
-  const hd = await taoOrder([{ ma_san_pham: sp, so_luong: 4 }], kh); // cần 80g NL1, 20g NL2 (đủ lúc đặt)
-  await datTon(50, 50); // kho tụt trước khi khách trả
-  const res = await tra(hd.ma_hoa_don);
-  assert.equal(res.status, 409);
-  assert.equal(res.body.loi, 'KHONG_DU_NGUYEN_LIEU');
-  assert.equal(res.body.thong_bao, 'Không đủ nguyên liệu: TEST_TT_NL1 cần 80 g, còn 50 g (thiếu 30 g)');
-  assert.equal(await ton(nl1), 50);
-  assert.equal(await ton(nl2), 50, 'không trừ dở dang');
-  assert.equal(await diemKhach(), 0);
-  const [[{ trang_thai }]] = [(await pool.query('SELECT trang_thai FROM HoaDon WHERE ma_hoa_don = ?', [hd.ma_hoa_don]))[0]];
-  assert.equal(trang_thai, 'dang_pha_che');
-
+test('thanh toán không kiểm tra kho: dù tồn đã về 0 (vì đã dùng hết lúc gọi) vẫn thu tiền được, tồn không âm', async () => {
   await datTon(100, 50);
-  assert.equal((await tra(hd.ma_hoa_don)).status, 200);
-});
-
-test('thanh toán là "tất cả hoặc không gì cả": thiếu một nguyên liệu thì nguyên liệu kia cũng không bị trừ', async () => {
-  await datTon(100, 50); await datDiem(0);
-  const hd = await taoOrder([{ ma_san_pham: sp, so_luong: 2 }], kh); // cần 40g NL1, 10g NL2
-  await datTon(100, 5); // chỉ NL2 thiếu
+  const hd = await taoOrder([{ ma_san_pham: sp, so_luong: 5 }]); // 100g -> NL1 còn 0
+  assert.equal(await ton(nl1), 0);
   const res = await tra(hd.ma_hoa_don);
-  assert.equal(res.status, 409);
-  assert.equal(res.body.chi_tiet.length, 1);
-  assert.equal(res.body.chi_tiet[0].ten_nguyen_lieu, 'TEST_TT_NL2');
-  assert.equal(await ton(nl1), 100, 'NL1 đủ nhưng không được trừ khi giao dịch hỏng');
-  assert.equal(await ton(nl2), 5);
+  assert.equal(res.status, 200, 'đã trừ đủ lúc gọi nên thanh toán không cần kho');
+  assert.equal(res.body.data.hoa_don.tong_tien, 50000);
+  assert.equal(await ton(nl1), 0, 'không bị trừ thêm nên không âm');
+  assert.equal(await ton(nl2), 25);
 });
 
-test('hai thanh toán đồng thời cùng dùng một nguyên liệu: tồn không bao giờ âm, chỉ đúng một thanh toán thành công', async () => {
-  await datTon(100, 50);
-  const a = await taoOrder([{ ma_san_pham: sp, so_luong: 3 }]); // 60g NL1: lúc đặt đều "đủ" (mỗi order 60 <= 100)
-  const b = await taoOrder([{ ma_san_pham: sp, so_luong: 3 }]);
-  const [ra, rb] = await Promise.all([tra(a.ma_hoa_don), tra(b.ma_hoa_don)]);
-  const trangThai = [ra.status, rb.status].sort();
-  assert.deepEqual(trangThai, [200, 409], `${ra.status} ${rb.status}`);
-  const thua = ra.status === 409 ? ra : rb;
-  assert.equal(thua.body.loi, 'KHONG_DU_NGUYEN_LIEU');
-  assert.equal(await ton(nl1), 40, '100 - 60, không bị trừ hai lần, không âm');
-  assert.equal(await ton(nl2), 35, '50 - 3 x 5');
-});
-
-test('bấm thanh toán nhiều lần cùng lúc trên một hóa đơn: chỉ một lần có hiệu lực', async () => {
+test('bấm thanh toán nhiều lần cùng lúc trên một hóa đơn: chỉ một lần có hiệu lực, điểm chỉ cộng một lần', async () => {
   await datTon(100, 50); await datDiem(0);
   const hd = await taoOrder([{ ma_san_pham: sp, so_luong: 1 }], kh);
   const kq = await Promise.all([1, 2, 3, 4].map(() => tra(hd.ma_hoa_don)));
   assert.equal(kq.filter(r => r.status === 200).length, 1, kq.map(r => r.status).join(','));
   assert.equal(kq.filter(r => r.status === 409 && r.body.loi === 'HOA_DON_DA_DONG').length, 3);
-  assert.equal(await ton(nl1), 80, 'trừ kho đúng một lần');
+  assert.equal(await ton(nl1), 80, 'kho giữ nguyên số đã trừ lúc gọi');
   assert.equal(await diemKhach(), 1, 'cộng điểm đúng một lần');
 });
 
 test('sửa và thanh toán cùng lúc: kết quả luôn nhất quán (tổng tiền khớp các dòng còn lại)', async () => {
-  await datTon(100, 50);
   const hd = await taoOrder([{ ma_san_pham: 7, so_luong: 1 }, { ma_san_pham: 7, so_luong: 1, ghi_chu: 'dòng 2' }]);
   const [sua, pay] = await Promise.all([
     goi('delete', `/api/hoa-don/${hd.ma_hoa_don}/dong/${hd.chi_tiet[1].ma_chi_tiet}`),
@@ -217,10 +191,10 @@ test('sửa và thanh toán cùng lúc: kết quả luôn nhất quán (tổng t
   ]);
   assert.equal(pay.status, 200);
   const [rows] = await pool.query('SELECT COALESCE(SUM(so_luong * don_gia - giam_gia), 0) AS tong FROM ChiTietHoaDon WHERE ma_hoa_don = ?', [hd.ma_hoa_don]);
-  const [[hoaDon]] = [(await pool.query('SELECT tong_tien FROM HoaDon WHERE ma_hoa_don = ?', [hd.ma_hoa_don]))[0]];
-  assert.equal(Number(hoaDon.tong_tien), Number(rows[0].tong), `sửa=${sua.status}: tổng đã chốt phải khớp các dòng còn lại`);
+  const [hoaDon] = await pool.query('SELECT tong_tien FROM HoaDon WHERE ma_hoa_don = ?', [hd.ma_hoa_don]);
+  assert.equal(Number(hoaDon[0].tong_tien), Number(rows[0].tong), `sửa=${sua.status}: tổng đã chốt phải khớp các dòng còn lại`);
   assert.ok([200, 409].includes(sua.status));
-  assert.equal(sua.status === 200 ? 45000 : 90000, Number(hoaDon.tong_tien), 'xóa kịp trước khi trả: 45.000; xóa chậm (bị chặn 409): 90.000');
+  assert.equal(sua.status === 200 ? 45000 : 90000, Number(hoaDon[0].tong_tien), 'xóa kịp trước khi trả: 45.000; xóa chậm (bị chặn 409): 90.000');
 });
 
 // ---------- POS-11: xem / in hóa đơn ----------

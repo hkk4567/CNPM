@@ -22,4 +22,8 @@ async function truTon(maNguyenLieu, soLuong, conn) {
   await conn.query('UPDATE NguyenLieu SET so_luong_ton = so_luong_ton - ? WHERE ma_nguyen_lieu = ?', [soLuong, maNguyenLieu]);
 }
 
-module.exports = { layCongThucVaTon, khoaNguyenLieu, truTon };
+async function congTon(maNguyenLieu, soLuong, conn) {
+  await conn.query('UPDATE NguyenLieu SET so_luong_ton = so_luong_ton + ? WHERE ma_nguyen_lieu = ?', [soLuong, maNguyenLieu]);
+}
+
+module.exports = { layCongThucVaTon, khoaNguyenLieu, truTon, congTon };

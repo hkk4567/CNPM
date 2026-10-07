@@ -80,14 +80,14 @@ const sp = [
 
 const pos = [
   ['POS-01', 'Xem menu', '`ma_danh_muc?`, `tu_khoa?`', 'Chỉ `SanPham.trang_thai = \'con_ban\'`; tra khuyến mãi đang hiệu lực (Phụ lục A.2); tính `so_ly_toi_da` theo tồn kho (Phụ lục A.3), sản phẩm chưa có công thức thì không giới hạn\n`gia_sau_giam`, `ma_khuyen_mai` bổ sung ở Sprint 3 khi có module khuyến mãi', 'Mảng `{ma_san_pham, ten_san_pham, gia_ban, gia_sau_giam, ma_khuyen_mai?, so_ly_toi_da, du_nguyen_lieu, ten_danh_muc}`\n`so_ly_toi_da` = null khi chưa có công thức (không giới hạn); `du_nguyen_lieu` = false khi `so_ly_toi_da` = 0', ''],
-  ['POS-02', 'Tạo order', '`ma_khach_hang?`\n`items[]: {ma_san_pham, so_luong, ghi_chu?}`', '`items` 1–50 dòng; `so_luong` nguyên 1–99; `ghi_chu` ≤ 255 ký tự; sản phẩm tồn tại và còn bán; mỗi dòng một `ma_chi_tiet` (cùng sản phẩm, ghi chú khác vẫn được)\n`ma_nhan_vien` lấy từ token (bỏ qua nếu client gửi)\n`so_thu_tu` = MAX trong ngày + 1, cấp trong transaction có khóa tên nên không trùng khi nhiều order tạo cùng lúc\nSnapshot `don_gia`; `giam_gia` = 0, `ma_khuyen_mai` = NULL cho đến Sprint 3\n`trang_thai = \'dang_pha_che\'`\nKiểm tra đủ nguyên liệu cho các dòng (Phụ lục A.4)', 'Hóa đơn `{ma_hoa_don, so_thu_tu, thoi_gian_tao, trang_thai, ma_khach_hang, ten_khach_hang, ma_nhan_vien, ten_nhan_vien, chi_tiet[], tong_tien_tam_tinh}`\n`chi_tiet[]: {ma_chi_tiet, ma_san_pham, ten_san_pham, so_luong, don_gia, giam_gia, ma_khuyen_mai, ghi_chu, thanh_tien}`\nHTTP 201', '400 `SAN_PHAM_NGUNG_BAN`, `DU_LIEU_SAI`\n404 sản phẩm / khách không tồn tại\n409 KHONG_DU_NGUYEN_LIEU'],
-  ['POS-03', 'Thêm món vào order', '`ma_hoa_don` (trên đường dẫn), `ma_san_pham`, `so_luong`, `ghi_chu?`', 'Khóa dòng `HoaDon` (FOR UPDATE) rồi kiểm tra chưa `da_thanh_toan`/`huy`\nSản phẩm tồn tại và còn bán; snapshot giá lúc thêm (khuyến mãi từ Sprint 3)\nLuôn thêm dòng mới (cùng sản phẩm, ghi chú khác là hai dòng)\nKiểm tra đủ nguyên liệu cho TOÀN BỘ order sau khi thêm (Phụ lục A.4)', 'Hóa đơn cập nhật (HTTP 201)', '400 `SAN_PHAM_NGUNG_BAN`\n404 order/sản phẩm\n409 `HOA_DON_DA_DONG`\n409 KHONG_DU_NGUYEN_LIEU'],
-  ['POS-04', 'Sửa dòng món', '`ma_hoa_don`, `ma_chi_tiet` (trên đường dẫn), `so_luong?`, `ghi_chu?` (null hoặc rỗng = xóa ghi chú)', 'Như POS-03; dòng phải thuộc đúng hóa đơn; ít nhất một trường\nĐổi `so_luong` thì giữ nguyên mức giảm trên mỗi ly (`giam_gia` tính lại theo tỷ lệ)\nChỉ kiểm tra nguyên liệu khi TĂNG nhu cầu; giảm số lượng và đổi ghi chú luôn được phép', 'Hóa đơn cập nhật', '400, 404\n409 `HOA_DON_DA_DONG`\n409 KHONG_DU_NGUYEN_LIEU'],
-  ['POS-05', 'Xóa dòng món', '`ma_hoa_don`, `ma_chi_tiet` (trên đường dẫn)', 'Như POS-03; không xóa dòng cuối cùng (phải hủy order)', 'Hóa đơn cập nhật', '404\n409 `HOA_DON_DA_DONG`\n409 `KHONG_XOA_DONG_CUOI`'],
+  ['POS-02', 'Tạo order', '`ma_khach_hang?`\n`items[]: {ma_san_pham, so_luong, ghi_chu?}`', '`items` 1–50 dòng; `so_luong` nguyên 1–99; `ghi_chu` ≤ 255 ký tự; sản phẩm tồn tại và còn bán; mỗi dòng một `ma_chi_tiet` (cùng sản phẩm, ghi chú khác vẫn được)\n`ma_nhan_vien` lấy từ token (bỏ qua nếu client gửi)\n`so_thu_tu` = MAX trong ngày + 1, cấp trong transaction có khóa tên nên không trùng khi nhiều order tạo cùng lúc\nSnapshot `don_gia`; `giam_gia` = 0, `ma_khuyen_mai` = NULL cho đến Sprint 3\nTRỪ KHO NGAY trong cùng transaction: khóa nguyên liệu, kiểm tra đủ cho TẤT CẢ dòng gộp lại, thiếu thì 409 và không tạo gì (Phụ lục A.4, A.5)', 'Hóa đơn `{ma_hoa_don, so_thu_tu, thoi_gian_tao, trang_thai, ma_khach_hang, ten_khach_hang, ma_nhan_vien, ten_nhan_vien, chi_tiet[], tong_tien_tam_tinh, canh_bao_kho[]}`\n`canh_bao_kho[]`: nguyên liệu vừa trừ mà tồn <= mức tối thiểu\nHTTP 201', '400 `SAN_PHAM_NGUNG_BAN`, `DU_LIEU_SAI`\n404 sản phẩm / khách không tồn tại\n409 KHONG_DU_NGUYEN_LIEU'],
+  ['POS-03', 'Thêm món vào order', '`ma_hoa_don` (trên đường dẫn), `ma_san_pham`, `so_luong`, `ghi_chu?`', 'Khóa dòng `HoaDon` (FOR UPDATE) rồi kiểm tra chưa `da_thanh_toan`/`huy`\nSản phẩm tồn tại và còn bán; snapshot giá lúc thêm (khuyến mãi từ Sprint 3)\nLuôn thêm dòng mới (cùng sản phẩm, ghi chú khác là hai dòng)\nTRỪ KHO NGAY phần ly mới thêm (thiếu: 409, không đổi gì)\nOrder đang `da_phuc_vu` mà gọi thêm thì quay lại `dang_pha_che` (có món mới cần làm)', 'Hóa đơn cập nhật + `canh_bao_kho[]` (HTTP 201)', '400 `SAN_PHAM_NGUNG_BAN`\n404 order/sản phẩm\n409 `HOA_DON_DA_DONG`\n409 KHONG_DU_NGUYEN_LIEU'],
+  ['POS-04', 'Sửa dòng món', '`ma_hoa_don`, `ma_chi_tiet` (trên đường dẫn), `so_luong?`, `ghi_chu?` (null hoặc rỗng = xóa ghi chú), `da_lam?`', 'Như POS-03; dòng phải thuộc đúng hóa đơn; ít nhất một trường\nĐổi `so_luong` thì giữ nguyên mức giảm trên mỗi ly (`giam_gia` tính lại theo tỷ lệ)\nTĂNG số lượng: trừ kho phần chênh (thiếu: 409); order `da_phuc_vu` thì quay lại `dang_pha_che`\nGIẢM số lượng: trả lại kho (số ly bị bỏ − `da_lam`) ly; `da_lam` = số ly trong phần bị bỏ ĐÃ làm xong (0 đến số ly bị bỏ, mặc định 0; chỉ dùng khi giảm). Order `da_phuc_vu` coi như làm xong hết: không trả\nĐổi ghi chú: không đụng kho', 'Hóa đơn cập nhật (+ `canh_bao_kho[]` khi tăng)', '400, 404\n409 `HOA_DON_DA_DONG`\n409 KHONG_DU_NGUYEN_LIEU'],
+  ['POS-05', 'Xóa dòng món', '`ma_hoa_don`, `ma_chi_tiet` (trên đường dẫn), `da_lam?` (query)', 'Như POS-03; không xóa dòng cuối cùng (phải hủy order)\n`da_lam` = số ly của dòng đã làm xong (0 đến `so_luong` của dòng, mặc định 0): ly chưa làm được trả lại kho, ly đã làm vẫn bị trừ\nOrder `da_phuc_vu` coi như làm xong hết: không trả', 'Hóa đơn cập nhật', '400, 404\n409 `HOA_DON_DA_DONG`\n409 `KHONG_XOA_DONG_CUOI`'],
   ['POS-06', 'Gắn khách thành viên', '`ma_hoa_don`, `so_dien_thoai`', 'Tìm `KhachHang` theo SĐT', '`{ma_khach_hang, ten_khach_hang, diem_tich_luy}`', '404 chưa có khách (giao diện gợi ý KH-01)'],
-  ['POS-07', 'Đổi trạng thái', '`ma_hoa_don`, `trang_thai_moi`', 'Chuyển hợp lệ: `dang_pha_che → da_phuc_vu`; `dang_pha_che`/`da_phuc_vu → huy`\nThanh toán dùng POS-08, không đi qua đây; hóa đơn đã đóng không đổi được', 'Hóa đơn cập nhật', '400 giá trị sai\n404\n409 `CHUYEN_TRANG_THAI_KHONG_HOP_LE`, `HOA_DON_DA_DONG`'],
-  ['POS-08', 'Thanh toán', '`ma_hoa_don` (đường dẫn), `phuong_thuc_thanh_toan` (`tien_mat`/`chuyen_khoan`/`vi`)', 'Một transaction; khóa theo thứ tự HoaDon, NguyenLieu (mã tăng dần), KhachHang\n1. Hóa đơn còn mở (đã thanh toán/đã hủy: 409)\n2. Chốt `tong_tien` = tổng (`so_luong` x `don_gia` - `giam_gia`) các dòng\n3. Khóa nguyên liệu, đọc lại tồn, kiểm tra đủ (Phụ lục A.4) rồi trừ kho theo `CongThuc`; thiếu thì ROLLBACK toàn bộ. CHECK `so_luong_ton >= 0` là chốt chặn cuối\n4. Ghi `da_thanh_toan`, chỉ khi hóa đơn chưa thanh toán nên không chạy hai lần\n5. Có khách: cộng `FLOOR(tong_tien / 10000)` điểm', '`{hoa_don, diem_cong, diem_hien_tai, canh_bao_kho[]}`\n`diem_hien_tai` = null với khách vãng lai\n`canh_bao_kho[]: {ma_nguyen_lieu, ten_nguyen_lieu, don_vi_tinh, so_luong_ton, muc_ton_toi_thieu}` cho nguyên liệu vừa trừ mà tồn <= mức tối thiểu', '400 giá trị sai\n404\n409 `HOA_DON_DA_DONG`\n409 KHONG_DU_NGUYEN_LIEU'],
-  ['POS-09', 'Hủy order', '`ma_hoa_don`', 'Chỉ hủy khi chưa `da_thanh_toan`; dùng chung logic POS-07\nKhông trừ kho (kho chỉ trừ lúc thanh toán)', 'Hóa đơn `trang_thai = huy`', '404\n409 `HOA_DON_DA_DONG`'],
+  ['POS-07', 'Đổi trạng thái', '`ma_hoa_don`, `trang_thai_moi`, `da_lam?[]` (chỉ khi hủy)', 'Chuyển hợp lệ: `dang_pha_che → da_phuc_vu`; `dang_pha_che`/`da_phuc_vu → huy`\nThanh toán dùng POS-08, không đi qua đây; hóa đơn đã đóng không đổi được\nHủy: cùng luật kho với POS-09', 'Hóa đơn cập nhật', '400 giá trị sai\n404\n409 `CHUYEN_TRANG_THAI_KHONG_HOP_LE`, `HOA_DON_DA_DONG`'],
+  ['POS-08', 'Thanh toán', '`ma_hoa_don` (đường dẫn), `phuong_thuc_thanh_toan` (`tien_mat`/`chuyen_khoan`/`vi`)', 'Một transaction; khóa theo thứ tự HoaDon, KhachHang\n1. Hóa đơn còn mở (đã thanh toán/đã hủy: 409)\n2. Chốt `tong_tien` = tổng (`so_luong` x `don_gia` - `giam_gia`) các dòng\n3. Ghi `da_thanh_toan`, chỉ khi hóa đơn chưa thanh toán nên không chạy hai lần\n4. Có khách: cộng `FLOOR(tong_tien / 10000)` điểm\nKHÔNG đụng kho: nguyên liệu đã được trừ từ lúc gọi món', '`{hoa_don, diem_cong, diem_hien_tai}`\n`diem_hien_tai` = null với khách vãng lai', '400 giá trị sai\n404\n409 `HOA_DON_DA_DONG`'],
+  ['POS-09', 'Hủy order', '`ma_hoa_don`, `da_lam?: [{ma_chi_tiet, so_luong}]`', 'Chỉ hủy khi chưa `da_thanh_toan`; dùng chung logic POS-07\nLy CHƯA làm được trả lại kho; ly ĐÃ làm (`da_lam`, dòng không nêu = chưa làm) thì nguyên liệu vẫn bị trừ\n`da_lam`: `ma_chi_tiet` phải thuộc hóa đơn, không lặp, `so_luong` không vượt số ly của dòng\nOrder `da_phuc_vu` coi như làm xong hết: không trả', 'Hóa đơn `trang_thai = huy`', '400 `da_lam` sai\n404\n409 `HOA_DON_DA_DONG`'],
   ['POS-10', 'Danh sách order', '`ngay?` (mặc định hôm nay), `trang_thai?`, `ma_nhan_vien?`', '`ngay` dạng YYYY-MM-DD hợp lệ; N chỉ xem order hôm nay (xin ngày khác: 403); sắp xếp tăng dần theo `so_thu_tu`\n`so_mon` = tổng số ly/phần; `tong_tien` = số đã chốt nếu `da_thanh_toan`, ngược lại là tạm tính từ các dòng\nPhân trang, mặc định 50 dòng, tối đa 200', 'Mảng `{ma_hoa_don, so_thu_tu, thoi_gian_tao, trang_thai, phuong_thuc_thanh_toan, ma_khach_hang, ten_khach_hang, ma_nhan_vien, ten_nhan_vien, so_mon, tong_tien}` + `tong_so_ban_ghi`, `trang`, `moi_trang`', '400 tham số sai\n403 N xem ngày khác'],
   ['POS-11', 'Xem/in hóa đơn', '`ma_hoa_don` (đường dẫn)', 'Join `HoaDon`, `ChiTietHoaDon`, `SanPham`, `KhachHang`, `NhanVien`\nNhân viên chỉ xem hóa đơn tạo hôm nay (403), cùng quy tắc với POS-10', 'Hóa đơn đầy đủ để in bill: thông tin chung, `chi_tiet[]`, `tong_tien_hang`, `tong_giam_gia`, `tong_tien_tam_tinh`, `tong_tien` (số đã chốt, null nếu chưa thanh toán)', '400, 403, 404'],
 ];
@@ -166,6 +166,9 @@ const gaps = [
 const sqlPay = `
 START TRANSACTION;
 
+-- Khóa hóa đơn; ứng dụng kiểm tra còn mở (chưa da_thanh_toan / huy)
+SELECT trang_thai FROM HoaDon WHERE ma_hoa_don = :id FOR UPDATE;
+
 UPDATE HoaDon
 SET trang_thai = 'da_thanh_toan',
     phuong_thuc_thanh_toan = :pttt,
@@ -177,17 +180,6 @@ UPDATE KhachHang k
 JOIN HoaDon h ON h.ma_khach_hang = k.ma_khach_hang
 SET k.diem_tich_luy = k.diem_tich_luy + FLOOR(h.tong_tien / 10000)
 WHERE h.ma_hoa_don = :id;
-
--- Trừ kho: service đã kiểm tra A.4; CHECK so_luong_ton >= 0 chặn nếu vẫn thiếu (bắt lỗi 4025 -> 409)
-UPDATE NguyenLieu nl
-JOIN (
-  SELECT ct.ma_nguyen_lieu, SUM(c.so_luong * ct.dinh_luong) AS can_tru
-  FROM ChiTietHoaDon c
-  JOIN CongThuc ct ON ct.ma_san_pham = c.ma_san_pham
-  WHERE c.ma_hoa_don = :id
-  GROUP BY ct.ma_nguyen_lieu
-) x ON x.ma_nguyen_lieu = nl.ma_nguyen_lieu
-SET nl.so_luong_ton = nl.so_luong_ton - x.can_tru;
 
 COMMIT;`;
 
@@ -202,16 +194,26 @@ const api = [
   ['POST', '/api/san-pham', 'SP-02 tạo sản phẩm', 'A/Q'],
   ['PATCH', '/api/san-pham/:ma', 'SP-03 sửa, ngừng bán', 'A/Q'],
   ['DELETE', '/api/san-pham/:ma', 'SP-04 xóa sản phẩm', 'A/Q'],
-  ['POST', '/api/hoa-don', 'POS-02 tạo order', 'A/Q/N'],
+  ['POST', '/api/hoa-don', 'POS-02 tạo order (trừ kho ngay)', 'A/Q/N'],
   ['GET', '/api/hoa-don', 'POS-10 danh sách order', 'A/Q/N'],
   ['POST', '/api/hoa-don/:ma/dong', 'POS-03 thêm món vào order', 'A/Q/N'],
-  ['PATCH', '/api/hoa-don/:ma/dong/:ma_chi_tiet', 'POS-04 sửa dòng món', 'A/Q/N'],
-  ['DELETE', '/api/hoa-don/:ma/dong/:ma_chi_tiet', 'POS-05 xóa dòng món', 'A/Q/N'],
-  ['PATCH', '/api/hoa-don/:ma/trang-thai', 'POS-07 đổi trạng thái', 'A/Q/N'],
-  ['POST', '/api/hoa-don/:ma/huy', 'POS-09 hủy order', 'A/Q/N'],
-  ['POST', '/api/hoa-don/:ma/thanh-toan', 'POS-08 thanh toán (chốt tiền, cộng điểm, trừ kho)', 'A/Q/N'],
+  ['PATCH', '/api/hoa-don/:ma/dong/:ma_chi_tiet', 'POS-04 sửa dòng món (da_lam khi giảm số lượng)', 'A/Q/N'],
+  ['DELETE', '/api/hoa-don/:ma/dong/:ma_chi_tiet?da_lam=', 'POS-05 xóa dòng món (da_lam = số ly đã làm)', 'A/Q/N'],
+  ['PATCH', '/api/hoa-don/:ma/trang-thai', 'POS-07 đổi trạng thái (da_lam khi hủy)', 'A/Q/N'],
+  ['POST', '/api/hoa-don/:ma/huy', 'POS-09 hủy order (body da_lam)', 'A/Q/N'],
+  ['POST', '/api/hoa-don/:ma/thanh-toan', 'POS-08 thanh toán (chốt tiền, cộng điểm; không đụng kho)', 'A/Q/N'],
   ['GET', '/api/hoa-don/:ma', 'POS-11 xem/in hóa đơn (nhân viên chỉ hóa đơn hôm nay)', 'A/Q/N'],
 ];
+
+const sqlKho = `
+-- Trừ kho khi gọi :sl ly sản phẩm :sp. Khóa nguyên liệu theo mã tăng dần, kiểm tra đủ (A.4) rồi mới trừ.
+SELECT ma_nguyen_lieu FROM NguyenLieu
+WHERE ma_nguyen_lieu IN (SELECT ma_nguyen_lieu FROM CongThuc WHERE ma_san_pham = :sp)
+ORDER BY ma_nguyen_lieu FOR UPDATE;
+
+UPDATE NguyenLieu nl
+JOIN CongThuc ct ON ct.ma_nguyen_lieu = nl.ma_nguyen_lieu AND ct.ma_san_pham = :sp
+SET nl.so_luong_ton = nl.so_luong_ton - :sl * ct.dinh_luong;   -- trả kho: đổi dấu trừ thành dấu cộng`;
 
 const sqlMax = `
 -- Số ly tối đa theo tồn kho; sản phẩm chưa có công thức thì không xuất hiện (= không giới hạn)
@@ -265,7 +267,8 @@ const children = [
   bullet('Thành công: `{ "ok": true, "data": ... }`. Lỗi: `{ "ok": false, "loi": "MA_LOI", "thong_bao": "..." }`.'),
   bullet('Danh sách có phân trang: đầu vào thêm `trang`, `moi_trang`; đầu ra thêm `tong_so_ban_ghi`.'),
   bullet('Tồn kho không được âm. Không đủ nguyên liệu để pha món: HTTP 409, `loi = "KHONG_DU_NGUYEN_LIEU"`, kèm `chi_tiet[]: {ten_nguyen_lieu, don_vi_tinh, so_luong_ton, can_dung, con_thieu}`. Ví dụ thông báo: "Không đủ nguyên liệu: Cà phê bột cần 20 g, còn 4 g (thiếu 16 g)".'),
-  bullet('Kiểm tra nguyên liệu ở hai lớp: khi nhập/sửa order (báo sớm cho nhân viên) và khi thanh toán (chốt chặn, vì nhiều order đang mở có thể cùng dùng một nguyên liệu).'),
+  bullet('Quy tắc kho: TRỪ NGAY khi gọi món (tạo order, thêm món, tăng số lượng). Bỏ ly chưa làm (xóa dòng, giảm số lượng, hủy order) thì TRẢ nguyên liệu; ly đã làm thì nguyên liệu vẫn bị trừ, nhân viên chọn số ly đã làm bằng `da_lam` (mặc định 0). Order `da_phuc_vu` coi như làm xong hết. Thanh toán không đụng kho. Không có nhật ký kho, chỉ cập nhật số tồn.'),
+  bullet('Hệ quả: nếu công thức của một sản phẩm bị đổi giữa lúc gọi và lúc trả, số nguyên liệu trả lại tính theo công thức HIỆN TẠI (không lưu công thức lúc gọi).'),
   bullet('Ký hiệu quyền: A = admin, Q = quản lý, N = nhân viên (lưu ở `TaiKhoan.quyen_truy_cap`).'),
   bullet('ERD dùng khóa chính riêng `ma_chi_tiet` cho `ChiTietHoaDon`. Dấu `?` sau tên trường = không bắt buộc.'),
   gap(),
@@ -300,9 +303,9 @@ const children = [
   para('Khi tạo CSDL cần thêm index cho `ChiTietHoaDon(ma_hoa_don)` và `ChiTietHoaDon(ma_san_pham)`, cùng ràng buộc UNIQUE cho `KhachHang.so_dien_thoai` và `TaiKhoan.ten_dang_nhap` (ERD Mermaid không thể hiện hết).'),
 
   h1('Phụ lục A. SQL cốt lõi'),
-  h2('A.1 Thanh toán (POS-08): một transaction gồm đổi trạng thái, cộng điểm, trừ kho'),
+  h2('A.1 Thanh toán (POS-08): một transaction gồm chốt tiền, đổi trạng thái, cộng điểm'),
   ...code(sqlPay),
-  para('Cài đặt thực tế (POS-08): mỗi nguyên liệu được khóa (FOR UPDATE, theo mã tăng dần) và đọc lại tồn trước khi trừ, nên hai thanh toán đồng thời cùng dùng một nguyên liệu chạy nối tiếp và tồn không bao giờ âm. Mỗi nguyên liệu trừ bằng một lệnh UPDATE riêng thay vì UPDATE gộp ở trên; kết quả giống nhau. Cứ 10.000 đồng tổng tiền được 1 điểm, làm tròn xuống.'),
+  para('Thanh toán không đụng kho vì nguyên liệu đã được trừ từ lúc gọi món (xem A.5). Hóa đơn bị khóa (FOR UPDATE) nên thanh toán, sửa và hủy cùng lúc trên một hóa đơn chạy nối tiếp. Cứ 10.000 đồng tổng tiền được 1 điểm, làm tròn xuống.'),
   gap(),
   h2('A.2 Khuyến mãi đang hiệu lực cho một sản phẩm (POS-01, POS-02): lấy mức giảm cao nhất'),
   ...code(sqlPromo),
@@ -310,8 +313,12 @@ const children = [
   h2('A.3 Số ly tối đa theo tồn kho (POS-01)'),
   ...code(sqlMax),
   gap(),
-  h2('A.4 Nguyên liệu còn thiếu cho một hóa đơn (POS-02/03/04/08)'),
+  h2('A.4 Nguyên liệu còn thiếu cho một hóa đơn (dùng để kiểm tra thủ công)'),
   ...code(sqlThieu),
+  gap(),
+  h2('A.5 Trừ kho khi gọi món, trả kho khi bỏ ly chưa làm'),
+  ...code(sqlKho),
+  para('Ly đã làm (da_lam) không được đưa vào phần trả. Nếu thiếu nguyên liệu, CHECK so_luong_ton >= 0 ở CSDL là chốt chặn cuối.'),
   gap(),
   para('Lưu ý: nếu một sản phẩm có nhiều khuyến mãi cùng lúc, đoạn SQL trên chọn mức giảm cao nhất. Có thể đổi quy tắc ở tầng ứng dụng (ví dụ chỉ cho một khuyến mãi hoạt động tại một thời điểm).'),
   gap(),

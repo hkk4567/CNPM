@@ -64,7 +64,7 @@
 ## Đóng gói
 - scripts/make-zip.sh tạo ../cafe_management.zip (bỏ node_modules, .env, dist, log). Chạy: bash scripts/make-zip.sh
 - QUY ƯỚC GIAO FILE (người dùng yêu cầu): sau MỖI bước, cập nhật trực tiếp trong thư mục dự án, ghi NOTES.md, rồi đóng gói lại zip và gửi.
-- Lịch sử zip: giao sau Bước 3; giao lại sau Bước 4 (gồm module san-pham); giao lại sau Bước 5 (gồm module hoa-don); giao lại sau Bước 6a (chỉnh sửa order); giao lại sau khi sửa lỗi 2 test (6a-fix); giao lại sau Bước 6b (thanh toán).
+- Lịch sử zip: giao sau Bước 3; giao lại sau Bước 4 (gồm module san-pham); giao lại sau Bước 5 (gồm module hoa-don); giao lại sau Bước 6a (chỉnh sửa order); giao lại sau khi sửa lỗi 2 test (6a-fix); giao lại sau Bước 6b (thanh toán); giao lại sau đổi quy tắc kho (6b-kho).
 
 ## Bước 4 – Module san-pham (đã làm, đã test)
 - Phạm vi: SP-01..SP-05 (danh mục + sản phẩm; trong backlog gộp chung là "SP-01", 5 điểm) và POS-01 (menu). Đã thêm mục 3.1 vào đặc tả, đánh số lại các mục 3.x (POS thành 3.2...).
@@ -123,5 +123,17 @@
 - Sprint 2 còn lại: POS-06 (gắn khách theo SĐT) và KH-01..KH-04 (bước 6c). KH-05 để Sprint 4 theo kế hoạch.
 - Chưa test trên XAMPP thật của người dùng; người dùng đã chạy được bộ test trước đó (58 test, chỉ 2 lỗi đã sửa ở 6a-fix).
 
-## Bước tiếp theo (chờ duyệt)
-- Bước 6c: khách hàng: KH-01 tạo khách, KH-03 tìm khách (theo tên/SĐT), POS-06 gắn khách vào order theo SĐT, KH-02 sửa khách, KH-04 lịch sử mua. Sau đó Sprint 3: khuyến mãi + kho.
+## Đổi quy tắc kho (6b-kho): TRỪ NGAY khi gọi món (hướng B) – đã làm, đã test
+- Người dùng xác nhận các giả định 1–6 và chọn cách hiểu khác ở mục 7: KHÔNG cần ghi vết / nhật ký kho, chỉ cập nhật số tồn. => KHÔNG đổi ERD, KHÔNG thêm bảng, KHÔNG cần db:init lại vì thay đổi cấu trúc (chỉ nạp lại dữ liệu mẫu nếu muốn tồn kho về như ban đầu).
+- Luật: (1) gọi món (tạo order / thêm món / tăng số lượng) = TRỪ KHO NGAY, chỉ phần ly mới thêm; thiếu: 409 KHONG_DU_NGUYEN_LIEU, không trừ gì, không tạo/đổi gì. (2) bỏ ly (xóa dòng / giảm số lượng / hủy order): ly CHƯA làm -> TRẢ nguyên liệu; ly ĐÃ làm -> nguyên liệu vẫn bị trừ. (3) chọn theo SỐ LY bằng da_lam (mặc định 0 = chưa làm = trả hết). (4) order da_phuc_vu coi như làm xong hết: bỏ ly/hủy thì KHÔNG trả, da_lam bị bỏ qua. (5) "xóa hóa đơn" = hủy order (trạng thái huy, dữ liệu giữ). (6) thanh toán KHÔNG trừ và KHÔNG kiểm tra kho nữa; canh_bao_kho chuyển sang phản hồi lúc gọi món (POS-02/03/04-tăng) và bị bỏ khỏi phản hồi thanh toán.
+- API da_lam: POST /api/hoa-don/:ma/huy {da_lam:[{ma_chi_tiet, so_luong}]} | PATCH .../trang-thai {trang_thai_moi:'huy', da_lam:[...]} (da_lam với trạng thái khác huy: 400) | PATCH .../dong/:ma_chi_tiet {so_luong, da_lam} (da_lam chỉ khi GIẢM số lượng, 0..số ly bị bỏ) | DELETE .../dong/:ma_chi_tiet?da_lam=N. da_lam sai (lặp dòng, dòng không thuộc hóa đơn, vượt số ly, âm): 400 DU_LIEU_SAI và không đổi gì.
+- QUYẾT ĐỊNH TUI TỰ ĐẶT (ngoài các giả định đã xác nhận, nêu rõ cho người dùng): (a) gọi thêm món vào order đang da_phuc_vu (hoặc tăng số lượng) thì order QUAY LẠI dang_pha_che, vì có món mới chưa làm; nhờ vậy lúc hủy nhân viên vẫn được chọn ly nào đã làm; (b) giảm số lượng / xóa dòng trong order da_phuc_vu cũng coi như đã làm xong, không trả; (c) không lưu công thức lúc gọi: nếu công thức đổi giữa lúc gọi và lúc trả thì số trả tính theo công thức HIỆN TẠI (hệ quả của việc không có nhật ký kho).
+- Mã: kho.service thêm traKho, truKho dùng lúc gọi món (khóa nguyên liệu theo mã tăng dần rồi đọc lại tồn, kiểm tra đủ, trừ; CHECK ck_nl_ton là chốt chặn cuối); bỏ kiemTraDuNguyenLieu (không còn dùng). hoa-don.service viết lại phần kho; thanhToan bỏ phần kho. Thứ tự khóa: HoaDon -> NguyenLieu (id tăng dần) -> KhachHang (tạo order: khóa tên so_thu_tu -> NguyenLieu); không có chu trình khóa.
+- LỖI TỰ MẮC VÀ ĐÃ SỬA: khi viết lại hàm xóa dòng, tui để sót tên biến tạm (maChichiTietPlaceholder) do thay chuỗi sai; test bắt được ngay (4 test fail), đã sửa. Bài học: kiểm tra lại bằng grep sau mỗi lần thay chuỗi tự động.
+- Test: viết lại hoa-don.test.js, hoa-don-sua.test.js, hoa-don-thanh-toan.test.js; thêm 5 test DB cho truKho/traKho trong kho.test.js. Quy ước MỚI: test KHÔNG được đặt món có công thức của dữ liệu mẫu (vì gọi món là trừ kho thật, dọn order không hoàn lại tồn kho mẫu) – dùng sản phẩm/nguyên liệu riêng TEST_<MODULE>_*; món 7 (Bánh tiramisu) không có công thức nên dùng được.
+- Kiểm chứng: 89/89 qua; 3 lần sạch + 3 lần có script gây nhiễu đều qua; tồn kho mẫu nguyên vẹn sau test (5000 4000 8000 6000 2000 800); không còn dữ liệu thừa. Thử ĐỘT BIẾN 4 chỗ (bỏ luật da_phuc_vu, bỏ khóa hóa đơn, hủy không trả kho, tăng không trừ kho): test bắt được 3, 2, 7, 2 test fail tương ứng; đã khôi phục và đối chiếu diff nguyên vẹn. Smoke test server thật đúng ví dụ của người dùng: 5000 -> gọi 3 ly 4940 -> thêm 1 ly 4920 -> hủy, 2/4 ly đã làm 4960.
+- Đặc tả Word (12 trang): sửa POS-02/03/04/05/07/08/09, quy tắc kho ở mục 1, A.1, A.4, thêm A.5, Phụ lục B.
+- Chưa test trên XAMPP thật của người dùng; người dùng nên chạy lại npm test (kỳ vọng 89/89).
+
+## Bước tiếp theo (chờ người dùng duyệt)
+- Bước 6c: khách hàng: KH-01 tạo khách, KH-03 tìm khách, POS-06 gắn khách vào order theo SĐT, KH-02 sửa khách, KH-04 lịch sử mua. Sau đó Sprint 3: khuyến mãi + kho.

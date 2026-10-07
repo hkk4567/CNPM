@@ -1,5 +1,5 @@
 // kho – nghiệp vụ. Hiện có: kiểm tra đủ nguyên liệu để pha món (quy tắc "tồn kho không âm").
-// Phần còn lại của module kho (KHO-01..KHO-06) làm ở Sprint 3.
+// Kho được TRỪ NGAY khi gọi món và TRẢ LẠI khi bỏ ly chưa làm (xem hoa-don.service). Phần còn lại của module kho (KHO-01..KHO-06) làm ở Sprint 3.
 const repo = require('./kho.repository');
 const { loi } = require('../../utils/loi-nghiep-vu');
 
@@ -34,16 +34,9 @@ function tinhThieu(dongs, congThuc) {
     .map(m => ({ ...m, con_thieu: lamTron(m.can_dung - m.so_luong_ton) }));
 }
 
-// Ném 409 KHONG_DU_NGUYEN_LIEU nếu các dòng không đủ nguyên liệu theo tồn hiện tại
-async function kiemTraDuNguyenLieu(dongs, conn) {
-  const maSanPham = [...new Set(dongs.map(d => d.ma_san_pham))];
-  const thieu = tinhThieu(dongs, await repo.layCongThucVaTon(maSanPham, conn));
-  if (thieu.length) throw loi.khongDuNguyenLieu(thieu);
-}
-
-// POS-08: TRỪ KHO khi thanh toán, phải gọi trong transaction của thanh toán.
+// TRỪ KHO khi gọi món (tạo order, thêm món, tăng số lượng): chỉ trừ phần ly MỚI thêm. Phải gọi trong transaction của hóa đơn.
 // Khóa các nguyên liệu liên quan TRƯỚC (FOR UPDATE, theo thứ tự mã), đọc lại tồn mới nhất, kiểm tra đủ rồi mới trừ:
-// hai thanh toán đồng thời dùng chung nguyên liệu sẽ chạy nối tiếp, người đến sau thấy tồn đã giảm.
+// hai order đồng thời dùng chung nguyên liệu sẽ chạy nối tiếp, người đến sau thấy tồn đã giảm. Thiếu: 409 KHONG_DU_NGUYEN_LIEU, không trừ gì.
 // Trả { canh_bao_kho } = các nguyên liệu vừa trừ mà tồn còn <= mức tối thiểu.
 async function truKho(dongs, conn) {
   const dsMaSanPham = [...new Set(dongs.map(d => d.ma_san_pham))];
@@ -75,4 +68,15 @@ async function truKho(dongs, conn) {
   return { canh_bao_kho: canhBao };
 }
 
-module.exports = { tinhNhuCau, tinhThieu, kiemTraDuNguyenLieu, truKho };
+// TRẢ KHO khi bỏ ly CHƯA làm (xóa dòng, giảm số lượng, hủy order). dongs = [{ ma_san_pham, so_luong }] là số ly được trả.
+// Khóa nguyên liệu cùng thứ tự với truKho. Ly ĐÃ làm thì KHÔNG đưa vào đây (nguyên liệu đã dùng, giữ nguyên số đã trừ).
+async function traKho(dongs, conn) {
+  const dsMaSanPham = [...new Set(dongs.map(d => d.ma_san_pham))];
+  const congThuc = await repo.layCongThucVaTon(dsMaSanPham, conn);
+  const dsMaNguyenLieu = [...new Set(congThuc.map(c => c.ma_nguyen_lieu))].sort((a, b) => a - b);
+  if (!dsMaNguyenLieu.length) return;
+  await repo.khoaNguyenLieu(dsMaNguyenLieu, conn);
+  for (const m of tinhNhuCau(dongs, congThuc)) await repo.congTon(m.ma_nguyen_lieu, m.can_dung, conn);
+}
+
+module.exports = { tinhNhuCau, tinhThieu, truKho, traKho };
