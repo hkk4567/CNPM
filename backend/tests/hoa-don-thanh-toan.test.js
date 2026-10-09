@@ -2,7 +2,7 @@
 // Sản phẩm TEST_TT_SP (10.000đ): công thức 20g NL1 + 5g NL2 mỗi ly. NL1 tồn 100g (mức tối thiểu 70g), NL2 tồn 50g.
 // QUY TẮC KHO MỚI: kho đã bị trừ từ lúc GỌI MÓN, nên thanh toán KHÔNG trừ và KHÔNG kiểm tra kho nữa.
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'khoa-chi-dung-cho-test';
-const { test, before, after } = require('node:test');
+const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 const pool = require('../src/config/db');
@@ -33,24 +33,134 @@ async function taoOrder(items, maKhach = null) {
 }
 const tra = (ma, pt = 'tien_mat', ten) => goi('post', `/api/hoa-don/${ma}/thanh-toan`, ten).send({ phuong_thuc_thanh_toan: pt });
 
+
 async function donDep() {
-  if (taoRa.length) {
-    await pool.query('DELETE FROM ChiTietHoaDon WHERE ma_hoa_don IN (?)', [taoRa]);
-    await pool.query('DELETE FROM HoaDon WHERE ma_hoa_don IN (?)', [taoRa]);
+  // Chỉ dùng trong CSDL test/local.
+  // Tạm tháo trigger DELETE để dọn snapshot test cũ.
+  await pool.query(
+    'DROP TRIGGER IF EXISTS trg_readonly_hoadondathanhtoan_delete'
+  );
+
+  try {
+    // Tìm tất cả hóa đơn thuộc khách test
+    // hoặc có chứa sản phẩm TEST_TT_*.
+    const [rows] = await pool.query(`
+      SELECT DISTINCT h.ma_hoa_don
+      FROM HoaDon h
+      LEFT JOIN KhachHang k
+        ON k.ma_khach_hang = h.ma_khach_hang
+      LEFT JOIN ChiTietHoaDon c
+        ON c.ma_hoa_don = h.ma_hoa_don
+      LEFT JOIN SanPham s
+        ON s.ma_san_pham = c.ma_san_pham
+      WHERE k.ten_khach_hang LIKE 'TEST\\_TT\\_%'
+         OR s.ten_san_pham LIKE 'TEST\\_TT\\_%'
+    `);
+
+    // Gộp hóa đơn test cũ với hóa đơn tạo trong lần chạy này.
+    const ids = [
+      ...new Set([
+        ...taoRa.map(Number),
+        ...rows.map(r => Number(r.ma_hoa_don))
+      ])
+    ];
+
+    if (ids.length > 0) {
+      // Xóa snapshot trước vì bảng này tham chiếu HoaDon.
+      await pool.query(
+        'DELETE FROM HoaDonDaThanhToan WHERE ma_hoa_don IN (?)',
+        [ids]
+      );
+
+      // Xóa chi tiết trước hóa đơn để tránh lỗi khóa ngoại.
+      await pool.query(
+        'DELETE FROM ChiTietHoaDon WHERE ma_hoa_don IN (?)',
+        [ids]
+      );
+
+      await pool.query(
+        'DELETE FROM HoaDon WHERE ma_hoa_don IN (?)',
+        [ids]
+      );
+    }
+
+    // Dọn các dữ liệu phụ được tạo riêng cho test.
+    await pool.query(`
+      DELETE ct FROM CongThuc ct
+      JOIN SanPham s ON s.ma_san_pham = ct.ma_san_pham
+      WHERE s.ten_san_pham LIKE 'TEST\\_TT\\_%'
+    `);
+
+    await pool.query(`
+      DELETE FROM SanPham
+      WHERE ten_san_pham LIKE 'TEST\\_TT\\_%'
+    `);
+
+    await pool.query(`
+      DELETE FROM NguyenLieu
+      WHERE ten_nguyen_lieu LIKE 'TEST\\_TT\\_%'
+    `);
+
+    await pool.query(`
+      DELETE FROM KhachHang
+      WHERE ten_khach_hang LIKE 'TEST\\_TT\\_%'
+    `);
+
+    await pool.query(`
+      DELETE FROM DanhMuc
+      WHERE ten_danh_muc LIKE 'TEST\\_TT\\_%'
+    `);
+
+    taoRa.length = 0;
+  } finally {
+    // Khôi phục trigger để các test kiểm tra
+    // khả năng chặn UPDATE/DELETE vẫn có ý nghĩa.
+    await pool.query(`
+      CREATE TRIGGER trg_readonly_hoadondathanhtoan_delete
+      BEFORE DELETE ON HoaDonDaThanhToan
+      FOR EACH ROW
+      SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT =
+        'LỖI: Bảng HoaDonDaThanhToan chỉ được phép thêm mới, tuyệt đối không được sửa hay xóa!'
+    `);
   }
-  await pool.query("DELETE c FROM ChiTietHoaDon c JOIN SanPham s ON s.ma_san_pham = c.ma_san_pham WHERE s.ten_san_pham LIKE 'TEST\\_TT\\_%'");
-  await pool.query("DELETE h FROM HoaDon h JOIN KhachHang k ON k.ma_khach_hang = h.ma_khach_hang WHERE k.ten_khach_hang LIKE 'TEST\\_TT\\_%'");
-  await pool.query("DELETE ct FROM CongThuc ct JOIN SanPham s ON s.ma_san_pham = ct.ma_san_pham WHERE s.ten_san_pham LIKE 'TEST\\_TT\\_%'");
-  await pool.query("DELETE FROM SanPham WHERE ten_san_pham LIKE 'TEST\\_TT\\_%'");
-  await pool.query("DELETE FROM NguyenLieu WHERE ten_nguyen_lieu LIKE 'TEST\\_TT\\_%'");
-  await pool.query("DELETE FROM KhachHang WHERE ten_khach_hang LIKE 'TEST\\_TT\\_%'");
-  await pool.query("DELETE FROM DanhMuc WHERE ten_danh_muc LIKE 'TEST\\_TT\\_%'");
 }
 
+beforeEach((t) => {
+  process.stderr.write(`[TEST START] ${t.name}\n`);
+});
+
 before(async () => {
+  process.stderr.write('[SETUP 1] Bắt đầu dọn dữ liệu\n');
   await donDep();
-  for (const [ten, mk] of [['admin', 'Admin@123'], ['quanly', 'Quanly@123'], ['nhanvien', 'Nhanvien@123']]) {
-    token[ten] = (await request(app).post('/api/auth/dang-nhap').send({ ten_dang_nhap: ten, mat_khau: mk })).body.data.token;
+
+  process.stderr.write('[SETUP 2] Dọn dữ liệu xong\n');
+
+  for (const [ten, mk] of [
+    ['admin', 'Admin@123'],
+    ['quanly', 'Quanly@123'],
+    ['nhanvien', 'Nhanvien@123']
+  ]) {
+    process.stderr.write(`[SETUP 3] Đang đăng nhập: ${ten}\n`);
+
+    const res = await request(app)
+      .post('/api/auth/dang-nhap')
+      .timeout({ response: 5000, deadline: 10000 })
+      .send({
+        ten_dang_nhap: ten,
+        mat_khau: mk
+      });
+
+    process.stderr.write(
+      `[SETUP 4] Đăng nhập ${ten}: HTTP ${res.status}\n`
+    );
+
+    token[ten] = res.body?.data?.token;
+
+    assert.ok(
+      token[ten],
+      `Đăng nhập ${ten} thất bại: ${JSON.stringify(res.body)}`
+    );
   }
   const dm = (await pool.query("INSERT INTO DanhMuc (ten_danh_muc) VALUES ('TEST_TT_DM')"))[0].insertId;
   sp = (await pool.query('INSERT INTO SanPham (ma_danh_muc, ten_san_pham, gia_ban) VALUES (?, ?, 10000)', [dm, 'TEST_TT_SP']))[0].insertId;
@@ -59,7 +169,16 @@ before(async () => {
   await pool.query('INSERT INTO CongThuc (ma_san_pham, ma_nguyen_lieu, dinh_luong) VALUES (?, ?, 20), (?, ?, 5)', [sp, nl1, sp, nl2]);
   kh = (await pool.query("INSERT INTO KhachHang (ten_khach_hang, so_dien_thoai) VALUES ('TEST_TT_KH', '0999000222')"))[0].insertId;
 });
-after(async () => { await donDep(); await pool.end(); });
+after(async () => {
+  try {
+    await donDep();
+  } catch (err) {
+    console.error('[LỖI DỌN DỮ LIỆU]', err);
+    throw err;
+  } finally {
+    await pool.end();
+  }
+});
 
 // ---------- POS-08: thanh toán ----------
 test('thanh toán: chốt tổng từ các dòng (kể cả sau khi sửa), cộng điểm, KHÔNG đụng kho (đã trừ lúc gọi)', async () => {
@@ -244,4 +363,69 @@ test('danh sách order: hóa đơn đã thanh toán hiện số tiền đã ch�
   const dong = res.body.data.find(h => h.ma_hoa_don === hd.ma_hoa_don);
   assert.equal(dong.tong_tien, 10000);
   assert.equal(dong.trang_thai, 'da_thanh_toan');
+});
+
+// ---------- KIỂM TRA BẢNG LƯU HÓA ĐƠN ĐÃ THANH TOÁN ----------
+test('thanh toán thành công: snapshot phải được lưu vào bảng HoaDonDaThanhToan', async () => {
+  await datTon(100, 50); await datDiem(0);
+  const hd = await taoOrder([{ ma_san_pham: sp, so_luong: 2 }], kh);
+
+  // Thanh toán
+  const payRes = await tra(hd.ma_hoa_don, 'chuyen_khoan');
+  assert.equal(payRes.status, 200, JSON.stringify(payRes.body));
+
+  // Truy vấn trực tiếp vào bảng HoaDonDaThanhToan
+  const [rows] = await pool.query(
+    'SELECT ma_hoa_don, phuong_thuc_thanh_toan, tong_tien, diem_cong FROM HoaDonDaThanhToan WHERE ma_hoa_don = ?',
+    [hd.ma_hoa_don]
+  );
+
+  assert.equal(rows.length, 1, 'Phải có 1 dòng lưu trong HoaDonDaThanhToan');
+  const snapshot = rows[0];
+  assert.equal(snapshot.phuong_thuc_thanh_toan, 'chuyen_khoan');
+  assert.equal(Number(snapshot.tong_tien), 20000, '2 ly x 10.000đ');
+  assert.equal(snapshot.diem_cong, payRes.body.data.diem_cong, 'Điểm cộng lưu trong bảng phải khớp với API trả về');
+});
+
+test('thanh toán 2 lần (lỗi 409): bảng HoaDonDaThanhToan không bị ghi đè hay ghi thêm dòng dư', async () => {
+  await datTon(100, 50); await datDiem(0);
+  const hd = await taoOrder([{ ma_san_pham: sp, so_luong: 1 }], kh);
+
+  // Lần 1: Thành công
+  const lan1 = await tra(hd.ma_hoa_don, 'tien_mat');
+  assert.equal(lan1.status, 200, JSON.stringify(lan1.body));
+
+  // Lần 2: Cố tình thanh toán lại với phương thức khác -> Lỗi 409
+  const lan2 = await tra(hd.ma_hoa_don, 'chuyen_khoan');
+  assert.equal(lan2.status, 409, 'Lần 2 phải bị chặn và trả về lỗi xung đột');
+
+  // Đếm số dòng trong HoaDonDaThanhToan
+  const [rows] = await pool.query(
+    'SELECT COUNT(*) as tong, MAX(phuong_thuc_thanh_toan) as pt FROM HoaDonDaThanhToan WHERE ma_hoa_don = ?',
+    [hd.ma_hoa_don]
+  );
+
+  assert.equal(Number(rows[0].tong), 1, 'Chỉ được phép có 1 dòng duy nhất');
+  assert.equal(rows[0].pt, 'tien_mat', 'Phương thức thanh toán phải giữ nguyên là tiền mặt, không bị ghi đè thành chuyển khoản');
+});
+
+test('trigger CSDL: chặn đứng UPDATE và DELETE trên bảng HoaDonDaThanhToan', async () => {
+  await datTon(100, 50); await datDiem(0);
+  const hd = await taoOrder([{ ma_san_pham: sp, so_luong: 1 }], kh);
+
+  const payRes = await tra(hd.ma_hoa_don, 'tien_mat');
+  assert.equal(payRes.status, 200);
+
+  // Dùng assert.rejects để bắt lỗi văng ra từ MySQL (từ khóa kiểm tra lấy từ cấu hình Trigger)
+  await assert.rejects(
+    pool.query('UPDATE HoaDonDaThanhToan SET tong_tien = 99999 WHERE ma_hoa_don = ?', [hd.ma_hoa_don]),
+    /sửa hay xóa/i,
+    'Phải văng lỗi từ Trigger khi cố tình UPDATE'
+  );
+
+  await assert.rejects(
+    pool.query('DELETE FROM HoaDonDaThanhToan WHERE ma_hoa_don = ?', [hd.ma_hoa_don]),
+    /sửa hay xóa/i,
+    'Phải văng lỗi từ Trigger khi cố tình DELETE'
+  );
 });

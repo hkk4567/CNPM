@@ -109,11 +109,36 @@ async function doiTrangThai(ma, trangThai, conn = pool) {
   await conn.query('UPDATE HoaDon SET trang_thai = ? WHERE ma_hoa_don = ?', [trangThai, ma]);
 }
 
-// POS-08: chốt thanh toán. Điều kiện trang_thai <> 'da_thanh_toan' giữ cho thao tác không bao giờ chạy hai lần.
-async function chotThanhToan(ma, phuongThuc, tongTien, conn) {
+// POS-08: chốt thanh toán. 
+async function chotThanhToan(ma, phuongThuc, tongTien, diemCong = 0, conn) {
   const [r] = await conn.query(
-    `UPDATE HoaDon SET trang_thai = 'da_thanh_toan', phuong_thuc_thanh_toan = ?, tong_tien = ?
-     WHERE ma_hoa_don = ? AND trang_thai <> 'da_thanh_toan'`, [phuongThuc, tongTien, ma]);
+    `UPDATE HoaDon 
+     SET trang_thai = 'da_thanh_toan', 
+         phuong_thuc_thanh_toan = ?, 
+         tong_tien = ?
+     WHERE ma_hoa_don = ? AND trang_thai <> 'da_thanh_toan'`,
+    [phuongThuc, tongTien, ma]
+  );
+
+  if (r.affectedRows > 0) {
+    await conn.query(
+      `INSERT INTO HoaDonDaThanhToan (
+          ma_hoa_don, ma_khach_hang, ma_nhan_vien, so_thu_tu, 
+          thoi_gian_tao, phuong_thuc_thanh_toan, tong_tien_hang, 
+          tong_giam_gia, tong_tien, diem_cong
+       )
+       SELECT 
+          h.ma_hoa_don, h.ma_khach_hang, h.ma_nhan_vien, h.so_thu_tu, 
+          h.thoi_gian_tao, ?, 
+          COALESCE((SELECT SUM(so_luong * don_gia) FROM ChiTietHoaDon WHERE ma_hoa_don = h.ma_hoa_don), h.tong_tien), 
+          COALESCE((SELECT SUM(giam_gia) FROM ChiTietHoaDon WHERE ma_hoa_don = h.ma_hoa_don), 0), 
+          h.tong_tien, ?
+       FROM HoaDon h
+       WHERE h.ma_hoa_don = ?`,
+      [phuongThuc, diemCong, ma]
+    );
+  }
+
   return r.affectedRows;
 }
 

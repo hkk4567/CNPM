@@ -125,6 +125,20 @@ erDiagram
         decimal don_gia_nhap
     }
 
+    HoaDonDaThanhToan {
+        int ma_hoa_don PK, FK
+        int ma_khach_hang FK
+        int ma_nhan_vien FK
+        int so_thu_tu
+        datetime thoi_gian_tao
+        datetime thoi_gian_thanh_toan
+        string phuong_thuc_thanh_toan
+        decimal tong_tien_hang
+        decimal tong_giam_gia
+        decimal tong_tien
+        int diem_cong
+    }   
+
     %% RELATIONSHIPS
     DanhMuc ||--o{ SanPham : "chua"
     HoaDon ||--|{ ChiTietHoaDon : "gom"
@@ -148,3 +162,4 @@ erDiagram
     NhaCungCap ||--o{ PhieuNhap : "cung_cap"
     PhieuNhap ||--|{ ChiTietNhap : "gom"
     NguyenLieu ||--o{ ChiTietNhap : "nhap_vao"
+    HoaDon ||--o| HoaDonDaThanhToan : "Lưu lại biên lai"

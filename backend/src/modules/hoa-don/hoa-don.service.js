@@ -227,16 +227,25 @@ const huy = (ma, daLam) => doiTrangThai(ma, 'huy', daLam);
 function thanhToan(ma, { phuong_thuc_thanh_toan }) {
   return withTransaction(async conn => {
     await khoaOrderDangMo(ma, conn);
+
     const dongs = await repo.layDongCuaHoaDon(ma, conn);
     const tong = lamTronTien(dongs.reduce((s, d) => s + d.so_luong * d.don_gia - d.giam_gia, 0));
     if (tong < 0) throw loi.xungDot('TONG_TIEN_KHONG_HOP_LE', 'Tổng tiền hóa đơn bị âm (mức giảm lớn hơn tiền hàng)');
 
-    if ((await repo.chotThanhToan(ma, phuong_thuc_thanh_toan, tong, conn)) !== 1) {
-      throw loi.xungDot('HOA_DON_DA_DONG', 'Hóa đơn đã thanh toán, không thay đổi được');
-    }
-    const hoaDon = await repo.layHoaDon(ma, conn);
+    // Lấy thông tin hóa đơn sớm để kiểm tra khách hàng và tính số điểm cộng
+    let hoaDon = await repo.layHoaDon(ma, conn);
     const coKhach = hoaDon.ma_khach_hang !== null;
     const diemCong = coKhach ? Math.floor(tong / DIEM_MOI_VND) : 0;
+
+    // Truyền thêm diemCong vào tham số thứ 4 của chotThanhToan (trước tham số conn)
+    if ((await repo.chotThanhToan(ma, phuong_thuc_thanh_toan, tong, diemCong, conn)) !== 1) {
+      throw loi.xungDot('HOA_DON_DA_DONG', 'Hóa đơn đã thanh toán, không thay đổi được');
+    }
+
+    // Lấy lại hóa đơn một lần nữa để lấy trạng thái mới nhất ('da_thanh_toan') trả về cho client
+    hoaDon = await repo.layHoaDon(ma, conn);
+
+    // Cộng điểm cho khách hàng sau khi bảng HoaDonDaThanhToan đã được ghi thành công
     const diemHienTai = coKhach ? await khachHangService.congDiem(hoaDon.ma_khach_hang, diemCong, conn) : null;
 
     return { hoa_don: dinhDang(hoaDon), diem_cong: diemCong, diem_hien_tai: diemHienTai };

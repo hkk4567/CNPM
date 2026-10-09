@@ -196,3 +196,65 @@ CREATE TABLE ChiTietNhap (
   CONSTRAINT fk_ctn_phieunhap  FOREIGN KEY (ma_phieu_nhap)  REFERENCES PhieuNhap(ma_phieu_nhap),
   CONSTRAINT fk_ctn_nguyenlieu FOREIGN KEY (ma_nguyen_lieu) REFERENCES NguyenLieu(ma_nguyen_lieu)
 ) ENGINE=InnoDB;
+-- =================================================================
+-- BẢNG LƯU TRỮ HÓA ĐƠN ĐÃ THANH TOÁN (READ-ONLY)
+-- =================================================================
+CREATE TABLE HoaDonDaThanhToan (
+    ma_hoa_don INT PRIMARY KEY,
+    ma_khach_hang INT,
+    ma_nhan_vien INT,
+    so_thu_tu INT,
+    thoi_gian_tao DATETIME,
+    thoi_gian_thanh_toan DATETIME DEFAULT CURRENT_TIMESTAMP,
+    phuong_thuc_thanh_toan VARCHAR(50) NOT NULL,
+    tong_tien_hang DECIMAL(12,2) NOT NULL,
+    tong_giam_gia DECIMAL(12,2) DEFAULT 0,
+    tong_tien DECIMAL(12,2) NOT NULL,
+    diem_cong INT DEFAULT 0,
+    FOREIGN KEY (ma_hoa_don) REFERENCES HoaDon(ma_hoa_don),
+    FOREIGN KEY (ma_khach_hang) REFERENCES KhachHang(ma_khach_hang),
+    FOREIGN KEY (ma_nhan_vien) REFERENCES NhanVien(ma_nhan_vien)
+);
+
+-- =================================================================
+-- TRIGGER CHẶN UPDATE CHO BẢNG HOADONDATHANHTOAN (MariaDB/MySQL)
+-- =================================================================
+CREATE TRIGGER trg_readonly_hoadondathanhtoan_update
+BEFORE UPDATE ON HoaDonDaThanhToan
+FOR EACH ROW
+SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LỖI: Bảng HoaDonDaThanhToan chỉ được phép thêm mới, tuyệt đối không được sửa hay xóa!';
+
+-- =================================================================
+-- TRIGGER CHẶN DELETE CHO BẢNG HOADONDATHANHTOAN (MariaDB/MySQL)
+-- =================================================================
+CREATE TRIGGER trg_readonly_hoadondathanhtoan_delete
+BEFORE DELETE ON HoaDonDaThanhToan
+FOR EACH ROW
+SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LỖI: Bảng HoaDonDaThanhToan chỉ được phép thêm mới, tuyệt đối không được sửa hay xóa!';
+
+-- =================================================================
+-- MIGRATION: NẠP NGƯỢC DỮ LIỆU CŨ TỪ BẢNG HOADON (NẾU CÓ)
+-- =================================================================
+INSERT IGNORE INTO HoaDonDaThanhToan (
+    ma_hoa_don, ma_khach_hang, ma_nhan_vien, so_thu_tu, 
+    thoi_gian_tao, thoi_gian_thanh_toan, phuong_thuc_thanh_toan, 
+    tong_tien_hang, tong_giam_gia, tong_tien, diem_cong
+)
+SELECT 
+    h.ma_hoa_don, h.ma_khach_hang, h.ma_nhan_vien, h.so_thu_tu, 
+    h.thoi_gian_tao, 
+    h.thoi_gian_tao AS thoi_gian_thanh_toan, 
+    COALESCE(h.phuong_thuc_thanh_toan, 'tien_mat') AS phuong_thuc_thanh_toan, 
+    COALESCE(c.tien_hang, h.tong_tien) AS tong_tien_hang, 
+    COALESCE(c.giam_gia, 0) AS tong_giam_gia, 
+    h.tong_tien, 
+    0 AS diem_cong 
+FROM HoaDon h
+LEFT JOIN (
+    SELECT ma_hoa_don, 
+           SUM(so_luong * don_gia) AS tien_hang, 
+           SUM(giam_gia) AS giam_gia 
+    FROM ChiTietHoaDon 
+    GROUP BY ma_hoa_don
+) c ON h.ma_hoa_don = c.ma_hoa_don
+WHERE h.trang_thai = 'da_thanh_toan';

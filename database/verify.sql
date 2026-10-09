@@ -116,3 +116,22 @@ UPDATE NguyenLieu nl JOIN (
 SET nl.so_luong_ton = nl.so_luong_ton - x.can_tru;
 SELECT ten_nguyen_lieu, so_luong_ton FROM NguyenLieu WHERE ma_nguyen_lieu = 1;  -- vẫn 4.000 (không âm)
 ROLLBACK;
+-- Kiểm tra bảng HoaDonDaThanhToan có tồn tại hay không
+SELECT
+    'Bang HoaDonDaThanhToan ton tai' AS test_case,
+    EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+          AND table_name = 'HoaDonDaThanhToan'
+    ) AS passed;
+
+-- Kiểm tra Trigger trg_readonly_hoadondathanhtoan có tồn tại hay không
+SELECT
+    'Trigger trg_readonly_hoadondathanhtoan ton tai' AS test_case,
+    EXISTS (
+        SELECT 1
+        FROM information_schema.triggers
+        WHERE trigger_schema = DATABASE()
+          AND trigger_name = 'trg_readonly_hoadondathanhtoan'
+    ) AS passed;
