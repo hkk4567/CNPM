@@ -15,6 +15,7 @@ router.delete('/:ma/dong/:ma_chi_tiet', validate({ params: schema.maVaChiTiet, q
 router.patch('/:ma/trang-thai', validate({ params: schema.ma, body: schema.doiTrangThai }), controller.doiTrangThai);         // POS-07
 router.post('/:ma/huy', validate({ params: schema.ma, body: schema.huy }), controller.huy);                                                     // POS-09
 router.post('/:ma/thanh-toan', validate({ params: schema.ma, body: schema.thanhToan }), controller.thanhToan);                // POS-08
+router.post('/:ma/khach-hang', validate({ params: schema.ma, body: schema.ganKhach }), controller.ganKhach);                  // POS-06
 router.get('/:ma', validate({ params: schema.ma }), controller.chiTiet);                                                      // POS-11
 
 module.exports = router;

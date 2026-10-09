@@ -9,7 +9,7 @@ USE cafe_management;
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS ChiTietNhap, PhieuNhap, CongThuc, NguyenLieu, NhaCungCap,
+DROP TABLE IF EXISTS HoaDonDaThanhToan, ChiTietNhap, PhieuNhap, CongThuc, NguyenLieu, NhaCungCap,
   PhanCong, TaiKhoan, NhanVien, CaLamViec, ChiTietHoaDon, HoaDon,
   KhuyenMaiSanPham, KhuyenMai, KhachHang, SanPham, DanhMuc;
 SET FOREIGN_KEY_CHECKS = 1;

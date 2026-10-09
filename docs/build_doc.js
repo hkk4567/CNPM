@@ -84,7 +84,7 @@ const pos = [
   ['POS-03', 'Thêm món vào order', '`ma_hoa_don` (trên đường dẫn), `ma_san_pham`, `so_luong`, `ghi_chu?`', 'Khóa dòng `HoaDon` (FOR UPDATE) rồi kiểm tra chưa `da_thanh_toan`/`huy`\nSản phẩm tồn tại và còn bán; snapshot giá lúc thêm (khuyến mãi từ Sprint 3)\nLuôn thêm dòng mới (cùng sản phẩm, ghi chú khác là hai dòng)\nTRỪ KHO NGAY phần ly mới thêm (thiếu: 409, không đổi gì)\nOrder đang `da_phuc_vu` mà gọi thêm thì quay lại `dang_pha_che` (có món mới cần làm)', 'Hóa đơn cập nhật + `canh_bao_kho[]` (HTTP 201)', '400 `SAN_PHAM_NGUNG_BAN`\n404 order/sản phẩm\n409 `HOA_DON_DA_DONG`\n409 KHONG_DU_NGUYEN_LIEU'],
   ['POS-04', 'Sửa dòng món', '`ma_hoa_don`, `ma_chi_tiet` (trên đường dẫn), `so_luong?`, `ghi_chu?` (null hoặc rỗng = xóa ghi chú), `da_lam?`', 'Như POS-03; dòng phải thuộc đúng hóa đơn; ít nhất một trường\nĐổi `so_luong` thì giữ nguyên mức giảm trên mỗi ly (`giam_gia` tính lại theo tỷ lệ)\nTĂNG số lượng: trừ kho phần chênh (thiếu: 409); order `da_phuc_vu` thì quay lại `dang_pha_che`\nGIẢM số lượng: trả lại kho (số ly bị bỏ − `da_lam`) ly; `da_lam` = số ly trong phần bị bỏ ĐÃ làm xong (0 đến số ly bị bỏ, mặc định 0; chỉ dùng khi giảm). Order `da_phuc_vu` coi như làm xong hết: không trả\nĐổi ghi chú: không đụng kho', 'Hóa đơn cập nhật (+ `canh_bao_kho[]` khi tăng)', '400, 404\n409 `HOA_DON_DA_DONG`\n409 KHONG_DU_NGUYEN_LIEU'],
   ['POS-05', 'Xóa dòng món', '`ma_hoa_don`, `ma_chi_tiet` (trên đường dẫn), `da_lam?` (query)', 'Như POS-03; không xóa dòng cuối cùng (phải hủy order)\n`da_lam` = số ly của dòng đã làm xong (0 đến `so_luong` của dòng, mặc định 0): ly chưa làm được trả lại kho, ly đã làm vẫn bị trừ\nOrder `da_phuc_vu` coi như làm xong hết: không trả', 'Hóa đơn cập nhật', '400, 404\n409 `HOA_DON_DA_DONG`\n409 `KHONG_XOA_DONG_CUOI`'],
-  ['POS-06', 'Gắn khách thành viên', '`ma_hoa_don`, `so_dien_thoai`', 'Tìm `KhachHang` theo SĐT', '`{ma_khach_hang, ten_khach_hang, diem_tich_luy}`', '404 chưa có khách (giao diện gợi ý KH-01)'],
+  ['POS-06', 'Gắn khách thành viên', '`ma_hoa_don`, `so_dien_thoai`', 'Tìm `KhachHang` theo SĐT (10 chữ số, bắt đầu bằng 0)\nOrder phải còn mở (đã thanh toán/hủy: 409); đổi sang khách khác khi còn mở được\nĐiểm chỉ cộng lúc thanh toán cho khách đang gắn trên hóa đơn', '`{ma_khach_hang, ten_khach_hang, diem_tich_luy}`', '404 chưa có khách (giao diện gợi ý KH-01); 400 SĐT sai định dạng; 409 order đã đóng'],
   ['POS-07', 'Đổi trạng thái', '`ma_hoa_don`, `trang_thai_moi`, `da_lam?[]` (chỉ khi hủy)', 'Chuyển hợp lệ: `dang_pha_che → da_phuc_vu`; `dang_pha_che`/`da_phuc_vu → huy`\nThanh toán dùng POS-08, không đi qua đây; hóa đơn đã đóng không đổi được\nHủy: cùng luật kho với POS-09', 'Hóa đơn cập nhật', '400 giá trị sai\n404\n409 `CHUYEN_TRANG_THAI_KHONG_HOP_LE`, `HOA_DON_DA_DONG`'],
   ['POS-08', 'Thanh toán', '`ma_hoa_don` (đường dẫn), `phuong_thuc_thanh_toan` (`tien_mat`/`chuyen_khoan`/`vi`)', 'Một transaction; khóa theo thứ tự HoaDon, KhachHang\n1. Hóa đơn còn mở (đã thanh toán/đã hủy: 409)\n2. Chốt `tong_tien` = tổng (`so_luong` x `don_gia` - `giam_gia`) các dòng\n3. Ghi `da_thanh_toan`, chỉ khi hóa đơn chưa thanh toán nên không chạy hai lần\n4. Có khách: cộng `FLOOR(tong_tien / 10000)` điểm\nKHÔNG đụng kho: nguyên liệu đã được trừ từ lúc gọi món', '`{hoa_don, diem_cong, diem_hien_tai}`\n`diem_hien_tai` = null với khách vãng lai', '400 giá trị sai\n404\n409 `HOA_DON_DA_DONG`'],
   ['POS-09', 'Hủy order', '`ma_hoa_don`, `da_lam?: [{ma_chi_tiet, so_luong}]`', 'Chỉ hủy khi chưa `da_thanh_toan`; dùng chung logic POS-07\nLy CHƯA làm được trả lại kho; ly ĐÃ làm (`da_lam`, dòng không nêu = chưa làm) thì nguyên liệu vẫn bị trừ\n`da_lam`: `ma_chi_tiet` phải thuộc hóa đơn, không lặp, `so_luong` không vượt số ly của dòng\nOrder `da_phuc_vu` coi như làm xong hết: không trả', 'Hóa đơn `trang_thai = huy`', '400 `da_lam` sai\n404\n409 `HOA_DON_DA_DONG`'],
@@ -103,10 +103,10 @@ const km = [
 ];
 
 const kh = [
-  ['KH-01', 'Tạo khách', 'A/Q/N', '`ten_khach_hang`, `so_dien_thoai`', 'SĐT đúng định dạng, UNIQUE; `diem_tich_luy = 0`', '`{ma_khach_hang, ...}`', '409 SĐT đã tồn tại'],
-  ['KH-02', 'Sửa khách', 'A/Q', '`ma_khach_hang`, `ten_khach_hang?`, `so_dien_thoai?`', 'Không cho sửa `diem_tich_luy` trực tiếp', 'Khách cập nhật', '409 trùng SĐT'],
-  ['KH-03', 'Tìm khách', 'A/Q/N', '`tu_khoa` (tên hoặc SĐT)', '`LIKE`, giới hạn 20 kết quả', 'Mảng `{ma_khach_hang, ten, sdt, diem}`', ''],
-  ['KH-04', 'Lịch sử mua', 'A/Q', '`ma_khach_hang`, `tu_ngay?`, `den_ngay?`', 'Hóa đơn `da_thanh_toan` của khách', 'Mảng hóa đơn + tổng chi tiêu', '404'],
+  ['KH-01', 'Tạo khách', 'A/Q/N', '`ten_khach_hang`, `so_dien_thoai`', 'SĐT đúng định dạng (10 chữ số, bắt đầu bằng 0), UNIQUE; `diem_tich_luy = 0`; gửi trường lạ (ví dụ điểm) bị 400', '`{ma_khach_hang, ten_khach_hang, so_dien_thoai, diem_tich_luy}`', '400; 409 `TRUNG_SDT`'],
+  ['KH-02', 'Sửa khách', 'A/Q', '`ma_khach_hang`, `ten_khach_hang?`, `so_dien_thoai?`', 'Không cho sửa `diem_tich_luy` trực tiếp (gửi trường này bị 400, không bị bỏ qua âm thầm); ít nhất một trường', 'Khách cập nhật', '400; 404; 409 `TRUNG_SDT`'],
+  ['KH-03', 'Tìm khách', 'A/Q/N', '`tu_khoa` (tên hoặc SĐT)', '`LIKE` trên tên hoặc SĐT, không phân biệt dấu/hoa thường, giới hạn 20 kết quả; `tu_khoa` bắt buộc', 'Mảng `{ma_khach_hang, ten_khach_hang, so_dien_thoai, diem_tich_luy}`', '400 thiếu tu_khoa'],
+  ['KH-04', 'Lịch sử mua', 'A/Q', '`ma_khach_hang`, `tu_ngay?`, `den_ngay?`', 'Hóa đơn `da_thanh_toan` của khách (đọc từ `HoaDonDaThanhToan`); `tu_ngay`/`den_ngay` lọc theo NGÀY THANH TOÁN, gồm cả hai đầu; phân trang (mặc định 20, tối đa 100)', 'Mảng hóa đơn (mới nhất trước) + `khach_hang`, `tong_chi_tieu` (tính trên toàn bộ kết quả lọc, không chỉ trang này)', '400 ngày sai; 404'],
   ['KH-05', 'Top khách thân thiết', 'A/Q', '`tu_ngay`, `den_ngay`, `top` (mặc định 10)', '`GROUP BY ma_khach_hang`, `SUM(tong_tien)`', 'Mảng `{ma_khach_hang, ten, so_don, tong_chi_tieu}`', ''],
 ];
 
@@ -201,6 +201,11 @@ const api = [
   ['DELETE', '/api/hoa-don/:ma/dong/:ma_chi_tiet?da_lam=', 'POS-05 xóa dòng món (da_lam = số ly đã làm)', 'A/Q/N'],
   ['PATCH', '/api/hoa-don/:ma/trang-thai', 'POS-07 đổi trạng thái (da_lam khi hủy)', 'A/Q/N'],
   ['POST', '/api/hoa-don/:ma/huy', 'POS-09 hủy order (body da_lam)', 'A/Q/N'],
+  ['POST', '/api/khach-hang', 'KH-01 tạo khách', 'A/Q/N'],
+  ['GET', '/api/khach-hang?tu_khoa=', 'KH-03 tìm khách (tối đa 20)', 'A/Q/N'],
+  ['PATCH', '/api/khach-hang/:ma', 'KH-02 sửa tên/SĐT (không sửa điểm)', 'A/Q'],
+  ['GET', '/api/khach-hang/:ma/lich-su', 'KH-04 lịch sử mua + tổng chi tiêu', 'A/Q'],
+  ['POST', '/api/hoa-don/:ma/khach-hang', 'POS-06 gắn khách theo SĐT', 'A/Q/N'],
   ['POST', '/api/hoa-don/:ma/thanh-toan', 'POS-08 thanh toán (chốt tiền, cộng điểm; không đụng kho)', 'A/Q/N'],
   ['GET', '/api/hoa-don/:ma', 'POS-11 xem/in hóa đơn (nhân viên chỉ hóa đơn hôm nay)', 'A/Q/N'],
 ];

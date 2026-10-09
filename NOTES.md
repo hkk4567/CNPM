@@ -137,3 +137,32 @@
 
 ## Bước tiếp theo (chờ người dùng duyệt)
 - Bước 6c: khách hàng: KH-01 tạo khách, KH-03 tìm khách, POS-06 gắn khách vào order theo SĐT, KH-02 sửa khách, KH-04 lịch sử mua. Sau đó Sprint 3: khuyến mãi + kho.
+
+## Đọc dự án trước Sprint 3 (chưa sửa mã)
+- Trạng thái thật của zip: xong tới 6b-kho. Chưa làm: 6c (khach-hang: KH-01..04, POS-06), kho (KHO-01..06), nhan-su, bao-cao, toàn bộ frontend (mọi file chỉ là stub 1 dòng), khuyen-mai (5 file stub, test stub).
+- Có thứ KHÔNG ghi trong NOTES: bảng HoaDonDaThanhToan (schema.sql cuối file, 2 trigger chặn UPDATE/DELETE, hoa-don.repository.chotThanhToan ghi snapshot, test trigger trong hoa-don-thanh-toan.test.js, có trong docs/cafe_erd.mmd). Chưa có trong đặc tả Word.
+- Điểm cần xử lý khi chạm schema: DROP TABLE đầu schema.sql không liệt kê HoaDonDaThanhToan và CREATE TRIGGER không có DROP trước -> db-init chạy lần 2 có thể lỗi (sẽ kiểm tra bằng cách chạy thật).
+- Chỗ khuyến mãi sẽ cắm vào (7b): san-pham.repository.menu (thêm gia_sau_giam, ma_khuyen_mai); hoa-don.service taoOrder/themDong (đang gán ma_khuyen_mai=null, giam_gia=0); suaDong (đang tính giam_gia theo tỷ lệ cũ); dinhDang đã có tong_giam_gia. Module khác gọi khuyen-mai qua service.
+- Môi trường sandbox: chưa có MariaDB/node_modules; apt cài được mariadb-server, npm registry truy cập được.
+
+## Bước 6c – Khách hàng KH-01..KH-04 + POS-06 (đã làm, đã test) – hoàn tất Sprint 2
+- API: POST /api/khach-hang (KH-01, A/Q/N, 201) | GET /api/khach-hang?tu_khoa= (KH-03, A/Q/N, tối đa 20) | PATCH /api/khach-hang/:ma (KH-02, A/Q) | GET /api/khach-hang/:ma/lich-su (KH-04, A/Q) | POST /api/hoa-don/:ma/khach-hang {so_dien_thoai} (POS-06, A/Q/N). KH-05 để Sprint 4.
+- Quyết định (tui tự đặt, dễ đổi): (1) SĐT = đúng 10 chữ số bắt đầu bằng 0 (khớp dữ liệu mẫu; chưa nhận +84); (2) KH-01/KH-02 dùng schema STRICT: gửi diem_tich_luy hoặc trường lạ => 400, không bỏ qua âm thầm; (3) tìm khách không phân biệt dấu/hoa thường (collation), % và _ là ký tự thường; (4) KH-04 đọc từ HoaDonDaThanhToan, lọc tu_ngay/den_ngay theo NGÀY THANH TOÁN (gồm cả hai đầu), sắp mới nhất trước, phân trang mặc định 20/tối đa 100; tong_chi_tieu và tong_so_ban_ghi tính trên toàn bộ kết quả lọc (không chỉ trang hiện tại); phản hồi: data = mảng hóa đơn, kèm khach_hang, tong_chi_tieu; (5) POS-06 chỉ khi order còn mở (đã thanh toán/hủy: 409 HOA_DON_DA_DONG), được đổi khách; điểm cộng lúc thanh toán cho khách đang gắn tại thời điểm đó; chưa có thao tác gỡ khách (đặc tả không yêu cầu).
+- Sửa kèm theo: database/schema.sql thêm HoaDonDaThanhToan vào DROP TABLE đầu file. Trước đó `npm run db:init` chạy LẦN 2 báo "Table 'HoaDonDaThanhToan' already exists"; giờ chạy 2 lần liên tiếp đều qua (đã kiểm chứng).
+- Bảng HoaDonDaThanhToan (do người dùng thêm, trước đây chưa ghi NOTES): bảng chỉ-thêm, 2 trigger chặn UPDATE/DELETE; chotThanhToan ghi 1 dòng snapshot (tong_tien_hang, tong_giam_gia, tong_tien, diem_cong, thoi_gian_thanh_toan) cùng transaction thanh toán. Từ nay KH-04 (và KM-07 ở 7b) đọc từ đây.
+- Test: tests/khach-hang.test.js (12 test, dữ liệu riêng TEST_KH_*, SĐT dải 0966xxxxxx, sản phẩm TEST_KH_SP không công thức nên không đụng kho). Thêm tests/_tien-ich-snapshot.js (voiKhoaTrigger, xoaSnapshot): dọn snapshot test phải tháo/dựng trigger DELETE, mà các file test chạy SONG SONG nên mọi nơi tháo/dựng hoặc kiểm tra trigger phải giữ chung một khóa GET_LOCK; đã sửa hoa-don-thanh-toan.test.js dùng khóa này (donDep và test trigger). Không đổi mã nguồn backend ngoài 6c.
+- Kết quả: nền 92/92 trước khi sửa -> 103/103 sau 6c (92 - 1 vì file stub rỗng khach-hang.test.js từng được đếm là 1 test + 12 test mới); chạy cả bộ khi có scripts/stress-hoa-don.sh vẫn 103/103. Thử ĐỘT BIẾN 2 chỗ (bỏ strict ở KH-02; bỏ cận trên den_ngay ở KH-04): test bắt được 2 test fail; đã khôi phục. Sau test: KhachHang 3, HoaDon 0, SanPham 8, snapshot 0, trigger 2, tồn kho mẫu nguyên vẹn.
+- Môi trường sandbox: MariaDB cài bằng apt, nạp bằng npm run db:init. Chưa test trên XAMPP thật của người dùng.
+- scripts/make-zip.sh nay lấy tên thư mục tự động (CNPM-main hay cafe_management đều chạy được).
+- Đặc tả Word: sửa POS-06, KH-01..KH-04, Phụ lục B (5 API mới); sinh lại bằng: cd docs && node build_doc.js
+- Quyết định đã chốt cho 7a/7b (người dùng): MỘT SẢN PHẨM ÁP ĐƯỢC NHIỀU MÃ khuyến mãi cùng lúc (thay cho "một khuyến mãi tốt nhất" ở bản tối giản); các mặc định còn lại giữ nguyên (làm tròn xuống đồng nguyên, mức giảm mỗi ly không vượt giá bán, order đang mở giữ snapshot cũ, KM-07 lọc ngày theo ngày thanh toán). HỆ QUẢ cần chốt ở đầu 7a: ChiTietHoaDon chỉ có MỘT cột ma_khuyen_mai.
+
+## Sửa lỗi sau 6c (6c-fix) – 2 test fail trên máy người dùng (Windows + XAMPP)
+- Báo từ máy người dùng: (a) khach-hang.test "POS-06: thanh toán cộng điểm..." trả 500 LOI_HE_THONG; (b) san-pham.test "danh mục..." 4 !== 3.
+- (b) LỖI CỦA TEST CỦA TUI: khach-hang.test.js chèn sản phẩm TEST_KH_SP vào danh mục có mã nhỏ nhất ("Cà phê") nên test san-pham (chạy song song) đếm được 4 sản phẩm. Sửa: tạo danh mục RIÊNG TEST_KH_DM cho sản phẩm test, tự dọn. Vi phạm quy ước "mỗi file chỉ đụng dữ liệu của mình" nên tui tự nhận lỗi.
+- (a) LỖI THẬT CỦA MÃ NGUỒN (không chỉ test): DEADLOCK MySQL 1213 khi 2 hóa đơn của CÙNG MỘT khách thanh toán đồng thời. Nguyên nhân: HoaDonDaThanhToan có khóa ngoại tới KhachHang => INSERT snapshot giữ khóa CHIA SẺ trên dòng khách, rồi UPDATE cộng điểm xin khóa GHI; hai transaction cùng giữ S rồi cùng chờ X => deadlock, một bên bị rollback và API trả 500. Lỗi có từ khi thêm bảng snapshot (trước 6c); 6c chỉ làm test chạm vào nó. Đặc tả POS-08 vốn quy định thứ tự khóa HoaDon -> KhachHang nhưng mã chưa khóa khách trước.
+- Tái hiện chắc chắn: test mới "thanh toán đồng thời 2 hóa đơn của CÙNG một khách" (12 vòng) trước khi sửa FAIL ngay vòng 0 với errno 1213; sau khi sửa qua.
+- SỬA: khach-hang.service.khoaKhach + repository.khoa (SELECT ... FOR UPDATE); hoa-don.service.thanhToan khóa khách TRƯỚC khi ghi snapshot. Thứ tự khóa thanh toán: HoaDon -> KhachHang.
+- Giả thuyết tui đã thử và LOẠI: tháo/dựng trigger đồng thời không gây 500 (chạy cả bộ 3 lần cùng vòng lặp tháo/dựng trigger, đều qua).
+- Kết quả: 104/104 qua; 3 lần sạch + 2 lần có scripts/stress-hoa-don.sh đều qua.
+- Lưu ý khi chạy lệnh trong sandbox: pkill -f <tên script> tự giết cả lệnh chứa tên đó; dùng pkill theo PID.

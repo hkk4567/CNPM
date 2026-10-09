@@ -105,6 +105,11 @@ async function xoaDong(maChiTiet, conn = pool) {
   await conn.query('DELETE FROM ChiTietHoaDon WHERE ma_chi_tiet = ?', [maChiTiet]);
 }
 
+// POS-06: gán (hoặc đổi) khách của hóa đơn
+async function ganKhach(ma, maKhach, conn = pool) {
+  await conn.query('UPDATE HoaDon SET ma_khach_hang = ? WHERE ma_hoa_don = ?', [maKhach, ma]);
+}
+
 async function doiTrangThai(ma, trangThai, conn = pool) {
   await conn.query('UPDATE HoaDon SET trang_thai = ? WHERE ma_hoa_don = ?', [trangThai, ma]);
 }
@@ -152,5 +157,5 @@ async function laHoaDonHomNay(ma, conn = pool) {
 module.exports = {
   chotThanhToan, laHoaDonHomNay,
   homNay, soThuTuTiepTheo, taoHoaDon, themChiTiet, layHoaDon, danhSach,
-  khoaHoaDon, layDongCuaHoaDon, timDong, suaDong, xoaDong, doiTrangThai,
+  khoaHoaDon, layDongCuaHoaDon, timDong, suaDong, xoaDong, doiTrangThai, ganKhach,
 };

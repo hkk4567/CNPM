@@ -221,7 +221,7 @@ function doiTrangThai(ma, trangThaiMoi, daLam) {
 const huy = (ma, daLam) => doiTrangThai(ma, 'huy', daLam);
 
 // POS-08: thanh toán, TẤT CẢ trong một transaction (một bước lỗi thì hủy hết, không để tiền/điểm lệch nhau).
-// KHÔNG đụng kho: nguyên liệu đã được trừ từ lúc gọi món. Thứ tự khóa: HoaDon -> KhachHang.
+// KHÔNG đụng kho: nguyên liệu đã được trừ từ lúc gọi món. Thứ tự khóa: HoaDon -> KhachHang (khóa khách TRƯỚC khi ghi snapshot).
 //  1. khóa hóa đơn, kiểm tra còn mở (đã thanh toán/đã hủy: 409)  2. chốt tổng tiền từ các dòng
 //  3. ghi trạng thái da_thanh_toan  4. cộng điểm cho khách thành viên
 function thanhToan(ma, { phuong_thuc_thanh_toan }) {
@@ -236,6 +236,8 @@ function thanhToan(ma, { phuong_thuc_thanh_toan }) {
     let hoaDon = await repo.layHoaDon(ma, conn);
     const coKhach = hoaDon.ma_khach_hang !== null;
     const diemCong = coKhach ? Math.floor(tong / DIEM_MOI_VND) : 0;
+    // Khóa khách TRƯỚC khi ghi snapshot (thứ tự khóa: HoaDon -> KhachHang) để hai thanh toán cùng khách không deadlock
+    if (coKhach) await khachHangService.khoaKhach(hoaDon.ma_khach_hang, conn);
 
     // Truyền thêm diemCong vào tham số thứ 4 của chotThanhToan (trước tham số conn)
     if ((await repo.chotThanhToan(ma, phuong_thuc_thanh_toan, tong, diemCong, conn)) !== 1) {
@@ -252,6 +254,17 @@ function thanhToan(ma, { phuong_thuc_thanh_toan }) {
   });
 }
 
+// POS-06: gắn khách thành viên vào order đang mở theo SĐT (đổi khách khi còn mở được). Đã thanh toán/hủy: 409.
+// Điểm chỉ được cộng lúc thanh toán cho khách đang gắn trên hóa đơn tại thời điểm đó.
+async function ganKhach(ma, { so_dien_thoai }) {
+  return withTransaction(async conn => {
+    await khoaOrderDangMo(ma, conn);
+    const kh = await khachHangService.layKhachTheoSdt(so_dien_thoai, conn);
+    await repo.ganKhach(ma, kh.ma_khach_hang, conn);
+    return { ma_khach_hang: kh.ma_khach_hang, ten_khach_hang: kh.ten_khach_hang, diem_tich_luy: kh.diem_tich_luy };
+  });
+}
+
 // POS-11: xem/in hóa đơn. Nhân viên chỉ xem hóa đơn của hôm nay (cùng quy tắc với danh sách POS-10).
 async function layHoaDonChiTiet(nguoiDung, ma) {
   const hoaDon = await repo.layHoaDon(ma);
@@ -262,4 +275,4 @@ async function layHoaDonChiTiet(nguoiDung, ma) {
   return dinhDang(hoaDon);
 }
 
-module.exports = { taoOrder, layDanhSach, themDong, suaDong, xoaDong, doiTrangThai, huy, thanhToan, layHoaDonChiTiet };
+module.exports = { taoOrder, layDanhSach, themDong, suaDong, xoaDong, doiTrangThai, huy, thanhToan, ganKhach, layHoaDonChiTiet };

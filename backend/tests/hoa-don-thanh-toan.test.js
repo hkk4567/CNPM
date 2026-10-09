@@ -34,7 +34,10 @@ async function taoOrder(items, maKhach = null) {
 const tra = (ma, pt = 'tien_mat', ten) => goi('post', `/api/hoa-don/${ma}/thanh-toan`, ten).send({ phuong_thuc_thanh_toan: pt });
 
 
-async function donDep() {
+const { voiKhoaTrigger } = require('./_tien-ich-snapshot');
+// Tháo/dựng trigger phải giữ khóa chung với các file test khác (chạy song song)
+const donDep = () => voiKhoaTrigger(pool, donDepKhongKhoa);
+async function donDepKhongKhoa() {
   // Chỉ dùng trong CSDL test/local.
   // Tạm tháo trigger DELETE để dọn snapshot test cũ.
   await pool.query(
@@ -416,16 +419,18 @@ test('trigger CSDL: chặn đứng UPDATE và DELETE trên bảng HoaDonDaThanhT
   const payRes = await tra(hd.ma_hoa_don, 'tien_mat');
   assert.equal(payRes.status, 200);
 
-  // Dùng assert.rejects để bắt lỗi văng ra từ MySQL (từ khóa kiểm tra lấy từ cấu hình Trigger)
-  await assert.rejects(
-    pool.query('UPDATE HoaDonDaThanhToan SET tong_tien = 99999 WHERE ma_hoa_don = ?', [hd.ma_hoa_don]),
-    /sửa hay xóa/i,
-    'Phải văng lỗi từ Trigger khi cố tình UPDATE'
-  );
+  await voiKhoaTrigger(pool, async () => {
+    // Dùng assert.rejects để bắt lỗi văng ra từ MySQL (từ khóa kiểm tra lấy từ cấu hình Trigger)
+    await assert.rejects(
+      pool.query('UPDATE HoaDonDaThanhToan SET tong_tien = 99999 WHERE ma_hoa_don = ?', [hd.ma_hoa_don]),
+      /sửa hay xóa/i,
+      'Phải văng lỗi từ Trigger khi cố tình UPDATE'
+    );
 
-  await assert.rejects(
-    pool.query('DELETE FROM HoaDonDaThanhToan WHERE ma_hoa_don = ?', [hd.ma_hoa_don]),
-    /sửa hay xóa/i,
-    'Phải văng lỗi từ Trigger khi cố tình DELETE'
-  );
+    await assert.rejects(
+      pool.query('DELETE FROM HoaDonDaThanhToan WHERE ma_hoa_don = ?', [hd.ma_hoa_don]),
+      /sửa hay xóa/i,
+      'Phải văng lỗi từ Trigger khi cố tình DELETE'
+    );
+  });
 });

@@ -68,4 +68,9 @@ const thanhToan = z.object({
   phuong_thuc_thanh_toan: z.enum(['tien_mat', 'chuyen_khoan', 'vi'], { error: 'phuong_thuc_thanh_toan phải là tien_mat, chuyen_khoan hoặc vi' }),
 });
 
-module.exports = { taoOrder, danhSachQuery, dong, ma, maVaChiTiet, suaDong, doiTrangThai, xoaDongQuery, huy, thanhToan };
+// POS-06: gắn khách thành viên theo SĐT (cùng định dạng với KH-01)
+const ganKhach = z.object({
+  so_dien_thoai: z.string({ error: 'so_dien_thoai phải là chuỗi' }).trim().regex(/^0\d{9}$/, 'so_dien_thoai phải gồm 10 chữ số và bắt đầu bằng 0'),
+});
+
+module.exports = { ganKhach, taoOrder, danhSachQuery, dong, ma, maVaChiTiet, suaDong, doiTrangThai, xoaDongQuery, huy, thanhToan };
