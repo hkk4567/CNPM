@@ -81,6 +81,10 @@ async function khoaSanPham(ma, conn) {
   const [rows] = await conn.query('SELECT ma_san_pham FROM SanPham WHERE ma_san_pham = ? FOR UPDATE', [ma]);
   return rows[0] || null;
 }
+async function khoaSanPhamCoTen(ma, conn) {
+  const [rows] = await conn.query('SELECT ma_san_pham, ten_san_pham FROM SanPham WHERE ma_san_pham = ? FOR UPDATE', [ma]);
+  return rows[0] || null;
+}
 async function taoSanPham(d, conn = pool) {
   const [r] = await conn.query(
     'INSERT INTO SanPham (ma_danh_muc, ten_san_pham, gia_ban, trang_thai) VALUES (?, ?, ?, ?)',
@@ -103,5 +107,5 @@ async function xoaSanPham(ma, conn) { await conn.query('DELETE FROM SanPham WHER
 module.exports = {
   dsDanhMuc, timDanhMuc, taoDanhMuc, suaDanhMuc, xoaDanhMuc, demSanPhamTrongDanhMuc,
   menu, danhSach, timSanPham, timNhieuSanPham, khoaSanPham, taoSanPham, suaSanPham, demChiTietHoaDon,
-  xoaCongThuc, xoaLienKetKhuyenMai, xoaSanPham,
+  xoaCongThuc, xoaLienKetKhuyenMai, xoaSanPham, khoaSanPhamCoTen,
 };

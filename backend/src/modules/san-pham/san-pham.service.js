@@ -99,7 +99,15 @@ async function xoaSanPham(ma) {
   }
 }
 
+// Cho module khác (kho: đặt công thức): khóa dòng sản phẩm (FOR UPDATE) trong transaction của họ; 404 nếu không có. Trả { ma_san_pham, ten_san_pham }.
+async function khoaSanPham(ma, conn) {
+  const sp = await repo.khoaSanPhamCoTen(ma, conn);
+  if (!sp) throw loiSanPhamKhongCo();
+  return sp;
+}
+
 module.exports = {
+  khoaSanPham,
   dsDanhMuc, taoDanhMuc, suaDanhMuc, xoaDanhMuc,
   layMenu, layDanhSach, layNhieuSanPham, layChiTiet, taoSanPham, suaSanPham, xoaSanPham,
 };
