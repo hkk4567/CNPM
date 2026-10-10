@@ -81,7 +81,7 @@ test('tạo order: nhân viên lấy từ token, chụp lại giá, mỗi dòng 
   assert.equal(hd.chi_tiet[0].ghi_chu, 'ít đường', 'tự cắt khoảng trắng');
   assert.equal(hd.chi_tiet[0].don_gia, 25000);
   assert.equal(hd.chi_tiet[0].giam_gia, 0);
-  assert.equal(hd.chi_tiet[0].ma_khuyen_mai, null);
+  assert.ok(!('ma_khuyen_mai' in hd.chi_tiet[0]), 'cột ma_khuyen_mai đã được thay bằng bảng ChiTietHoaDonKhuyenMai');
   assert.equal(hd.chi_tiet[0].thanh_tien, 50000);
   assert.equal(hd.tong_tien_tam_tinh, 3 * 25000 + 45000);
   assert.deepEqual(hd.canh_bao_kho, [], 'món không công thức: không đụng kho nên không có cảnh báo');

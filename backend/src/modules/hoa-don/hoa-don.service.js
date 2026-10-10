@@ -11,6 +11,7 @@ const repo = require('./hoa-don.repository');
 const sanPhamService = require('../san-pham/san-pham.service');
 const khachHangService = require('../khach-hang/khach-hang.service');
 const khoService = require('../kho/kho.service');
+const khuyenMaiService = require('../khuyen-mai/khuyen-mai.service');
 const { loi } = require('../../utils/loi-nghiep-vu');
 const { withTransaction } = require('../../utils/transaction');
 
@@ -50,16 +51,14 @@ async function taoOrder(nguoiDung, { ma_khach_hang = null, items }) {
   if (ma_khach_hang !== null) await khachHangService.layKhachHang(ma_khach_hang);
 
   // 3. Ghi hóa đơn + TRỪ KHO trong một transaction (hỏng bước nào thì hủy hết). Khóa nối tiếp để so_thu_tu
-  //    (reset mỗi ngày) không bị trùng khi nhiều order tạo cùng lúc. Khuyến mãi: giam_gia = 0, ma_khuyen_mai = NULL đến Sprint 3.
+  //    (reset mỗi ngày) không bị trùng khi nhiều order tạo cùng lúc. Khuyến mãi tự áp ở ghiDongCoKhuyenMai (7b).
   const ketQua = await withTransaction(async conn => {
     const so_thu_tu = await repo.soThuTuTiepTheo(conn);
     const ma = await repo.taoHoaDon({ ma_khach_hang, ma_nhan_vien: nguoiDung.ma_nhan_vien, so_thu_tu }, conn);
-    await repo.themChiTiet(ma, items.map(i => ({
+    await ghiDongCoKhuyenMai(ma, items.map(i => ({
       ma_san_pham: i.ma_san_pham,
-      ma_khuyen_mai: null,
       so_luong: i.so_luong,
       don_gia: theoMa.get(i.ma_san_pham).gia_ban,
-      giam_gia: 0,
       ghi_chu: i.ghi_chu,
     })), conn);
     const { canh_bao_kho } = await khoService.truKho(sangDongNhuCau(items), conn);
@@ -99,6 +98,17 @@ function trongOrder(ma, thucHien) {
     const hoaDon = dinhDang(await repo.layHoaDon(ma, conn));
     return kq && kq.canh_bao_kho ? { ...hoaDon, canh_bao_kho: kq.canh_bao_kho } : hoaDon;
   });
+}
+
+// 7b: ghi các dòng mới + TỰ ÁP khuyến mãi đang hiệu lực (cộng dồn trên giá gốc = don_gia đã chụp, tính trên từng ly).
+// dongs = [{ ma_san_pham, so_luong, don_gia, ghi_chu }]. giam_gia của dòng = so_luong x tổng mức giảm mỗi ly; từng mã được chụp vào
+// ChiTietHoaDonKhuyenMai. Phải gọi trong transaction (khóa chia sẻ các khuyến mãi dùng đến khi COMMIT).
+async function ghiDongCoKhuyenMai(ma, dongs, conn) {
+  const gia = await khuyenMaiService.tinhKhuyenMai(dongs.map(d => ({ ma_san_pham: d.ma_san_pham, gia_ban: d.don_gia })), { conn, khoa: true });
+  const ids = await repo.themChiTiet(ma, dongs.map(d => ({ ...d, giam_gia: lamTronTien(d.so_luong * gia.get(d.ma_san_pham).tong_giam_moi_ly) })), conn);
+  const hang = [];
+  dongs.forEach((d, i) => gia.get(d.ma_san_pham).khuyen_mai.forEach(k => hang.push([ids[i], k.ma_khuyen_mai, k.muc_giam_moi_ly])));
+  await repo.themKhuyenMaiDong(hang, conn);
 }
 
 const sangDongNhuCau = dongs => dongs.map(d => ({ ma_san_pham: d.ma_san_pham, so_luong: d.so_luong }));
@@ -141,13 +151,13 @@ function themDong(ma, { ma_san_pham, so_luong, ghi_chu }) {
       throw loi.yeuCauSai('SAN_PHAM_NGUNG_BAN', `Sản phẩm đã ngừng bán: ${sp.ten_san_pham}`, [{ ma_san_pham: sp.ma_san_pham, ten_san_pham: sp.ten_san_pham }]);
     }
     const { canh_bao_kho } = await khoService.truKho([{ ma_san_pham, so_luong }], conn);
-    await repo.themChiTiet(ma, [{ ma_san_pham, ma_khuyen_mai: null, so_luong, don_gia: sp.gia_ban, giam_gia: 0, ghi_chu }], conn);
+    await ghiDongCoKhuyenMai(ma, [{ ma_san_pham, so_luong, don_gia: sp.gia_ban, ghi_chu }], conn);
     await veDangPhaCheNeuDaPhucVu(ma, hd, conn);
     return { canh_bao_kho };
   });
 }
 
-// POS-04: đổi số lượng giữ nguyên mức giảm trên mỗi ly (giam_gia tính lại theo tỷ lệ; Sprint 3 sẽ tính từ khuyến mãi).
+// POS-04: đổi số lượng giữ nguyên mức giảm trên mỗi ly ĐÃ CHỤP của dòng (giam_gia = số ly mới x tổng mức giảm mỗi ly; không tính lại theo khuyến mãi hiện tại).
 //  - TĂNG: trừ kho phần chênh (thiếu thì 409, không đổi gì).
 //  - GIẢM: trả lại kho phần ly bị bỏ trừ `da_lam` (số ly trong phần bị bỏ đã làm xong; mặc định 0).
 function suaDong(ma, maChiTiet, { so_luong, ghi_chu, da_lam }) {
@@ -163,7 +173,8 @@ function suaDong(ma, maChiTiet, { so_luong, ghi_chu, da_lam }) {
     let ketQua;
     if (doiSoLuong) {
       capNhat.so_luong = so_luong;
-      capNhat.giam_gia = lamTronTien((dong.giam_gia / dong.so_luong) * so_luong);
+      const moiLy = await repo.tongGiamMoiLy(maChiTiet, conn);
+      capNhat.giam_gia = lamTronTien((moiLy ?? dong.giam_gia / dong.so_luong) * so_luong); // moiLy null: dòng cũ chưa có snapshot theo mã
       if (!giamSoLuong) {
         ketQua = await khoService.truKho([{ ma_san_pham: dong.ma_san_pham, so_luong: so_luong - dong.so_luong }], conn);
         await veDangPhaCheNeuDaPhucVu(ma, hd, conn);

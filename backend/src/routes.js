@@ -17,7 +17,8 @@ const sanPham = require('./modules/san-pham/san-pham.routes');
 router.use('/danh-muc', sanPham.danhMuc);
 router.use('/san-pham', sanPham.sanPham);
 router.use('/khach-hang', require('./modules/khach-hang/khach-hang.routes'));
+router.use('/khuyen-mai', require('./modules/khuyen-mai/khuyen-mai.routes'));
 router.use('/hoa-don', require('./modules/hoa-don/hoa-don.routes'));
-// Sprint 3: khuyen-mai, kho | Sprint 4: nhan-su | Sprint 5: bao-cao
+// Sprint 3: kho | Sprint 4: nhan-su | Sprint 5: bao-cao
 
 module.exports = router;

@@ -21,10 +21,28 @@ async function taoHoaDon({ ma_khach_hang, ma_nhan_vien, so_thu_tu }, conn = pool
   return r.insertId;
 }
 
+// Ghi từng dòng một và trả mã chi tiết theo đúng thứ tự (cần để gắn khuyến mãi từng dòng; không dựa vào việc mã tự tăng liên tiếp)
 async function themChiTiet(maHoaDon, dongs, conn = pool) {
-  const values = dongs.map(d => [maHoaDon, d.ma_san_pham, d.ma_khuyen_mai ?? null, d.so_luong, d.don_gia, d.giam_gia ?? 0, d.ghi_chu || null]);
-  await conn.query(
-    'INSERT INTO ChiTietHoaDon (ma_hoa_don, ma_san_pham, ma_khuyen_mai, so_luong, don_gia, giam_gia, ghi_chu) VALUES ?', [values]);
+  const ids = [];
+  for (const d of dongs) {
+    const [r] = await conn.query(
+      'INSERT INTO ChiTietHoaDon (ma_hoa_don, ma_san_pham, so_luong, don_gia, giam_gia, ghi_chu) VALUES (?, ?, ?, ?, ?, ?)',
+      [maHoaDon, d.ma_san_pham, d.so_luong, d.don_gia, d.giam_gia ?? 0, d.ghi_chu || null]);
+    ids.push(r.insertId);
+  }
+  return ids;
+}
+
+// rows = [[ma_chi_tiet, ma_khuyen_mai, muc_giam_moi_ly], ...]
+async function themKhuyenMaiDong(rows, conn = pool) {
+  if (!rows.length) return;
+  await conn.query('INSERT INTO ChiTietHoaDonKhuyenMai (ma_chi_tiet, ma_khuyen_mai, muc_giam_moi_ly) VALUES ?', [rows]);
+}
+
+// Tổng mức giảm MỖI LY của một dòng theo các mã đã chụp; null nếu dòng không có mã nào (dùng để tính lại giam_gia khi đổi số lượng)
+async function tongGiamMoiLy(maChiTiet, conn = pool) {
+  const [rows] = await conn.query('SELECT SUM(muc_giam_moi_ly) AS tong, COUNT(*) AS n FROM ChiTietHoaDonKhuyenMai WHERE ma_chi_tiet = ?', [maChiTiet]);
+  return Number(rows[0].n) === 0 ? null : Number(rows[0].tong);
 }
 
 async function layHoaDon(ma, conn = pool) {
@@ -37,11 +55,20 @@ async function layHoaDon(ma, conn = pool) {
      WHERE hd.ma_hoa_don = ?`, [ma]);
   if (!hd[0]) return null;
   const [chiTiet] = await conn.query(
-    `SELECT c.ma_chi_tiet, c.ma_san_pham, sp.ten_san_pham, c.so_luong, c.don_gia, c.giam_gia, c.ma_khuyen_mai, c.ghi_chu,
+    `SELECT c.ma_chi_tiet, c.ma_san_pham, sp.ten_san_pham, c.so_luong, c.don_gia, c.giam_gia, c.ghi_chu,
             c.so_luong * c.don_gia - c.giam_gia AS thanh_tien
      FROM ChiTietHoaDon c JOIN SanPham sp ON sp.ma_san_pham = c.ma_san_pham
      WHERE c.ma_hoa_don = ? ORDER BY c.ma_chi_tiet`, [ma]);
-  return { ...hd[0], chi_tiet: chiTiet };
+  // Khuyến mãi đã áp từng dòng (snapshot) + mức giảm mỗi ly
+  const theoDong = new Map(chiTiet.map(c => [c.ma_chi_tiet, []]));
+  if (chiTiet.length) {
+    const [kms] = await conn.query(
+      `SELECT x.ma_chi_tiet, x.ma_khuyen_mai, km.ten_khuyen_mai, x.muc_giam_moi_ly
+       FROM ChiTietHoaDonKhuyenMai x JOIN KhuyenMai km ON km.ma_khuyen_mai = x.ma_khuyen_mai
+       WHERE x.ma_chi_tiet IN (?) ORDER BY x.ma_chi_tiet, x.ma_khuyen_mai`, [chiTiet.map(c => c.ma_chi_tiet)]);
+    for (const k of kms) theoDong.get(k.ma_chi_tiet).push({ ma_khuyen_mai: k.ma_khuyen_mai, ten_khuyen_mai: k.ten_khuyen_mai, muc_giam_moi_ly: k.muc_giam_moi_ly });
+  }
+  return { ...hd[0], chi_tiet: chiTiet.map(c => ({ ...c, khuyen_mai: theoDong.get(c.ma_chi_tiet) })) };
 }
 
 // POS-10. tong_tien: hóa đơn đã thanh toán lấy số đã chốt; còn lại là tạm tính từ các dòng.
@@ -126,22 +153,22 @@ async function chotThanhToan(ma, phuongThuc, tongTien, diemCong = 0, conn) {
   );
 
   if (r.affectedRows > 0) {
+    // Đọc KHÔNG khóa (SELECT thường) rồi INSERT ... VALUES. Không dùng INSERT ... SELECT vì nó đặt khóa chia sẻ (next-key) lên
+    // các dòng/khoảng trống của HoaDon và ChiTietHoaDon -> deadlock khi có giao dịch khác chèn dòng vào hóa đơn lân cận.
+    // An toàn vì hóa đơn này đã bị khóa ghi (khoaOrderDangMo) nên các dòng của nó không đổi được trong lúc ta ghi snapshot.
+    const [[h]] = await conn.query(
+      `SELECT h.ma_hoa_don, h.ma_khach_hang, h.ma_nhan_vien, h.so_thu_tu, h.thoi_gian_tao, h.tong_tien,
+              (SELECT SUM(so_luong * don_gia) FROM ChiTietHoaDon WHERE ma_hoa_don = h.ma_hoa_don) AS tien_hang,
+              (SELECT SUM(giam_gia) FROM ChiTietHoaDon WHERE ma_hoa_don = h.ma_hoa_don) AS giam
+       FROM HoaDon h WHERE h.ma_hoa_don = ?`, [ma]);
     await conn.query(
       `INSERT INTO HoaDonDaThanhToan (
-          ma_hoa_don, ma_khach_hang, ma_nhan_vien, so_thu_tu, 
-          thoi_gian_tao, phuong_thuc_thanh_toan, tong_tien_hang, 
+          ma_hoa_don, ma_khach_hang, ma_nhan_vien, so_thu_tu,
+          thoi_gian_tao, phuong_thuc_thanh_toan, tong_tien_hang,
           tong_giam_gia, tong_tien, diem_cong
-       )
-       SELECT 
-          h.ma_hoa_don, h.ma_khach_hang, h.ma_nhan_vien, h.so_thu_tu, 
-          h.thoi_gian_tao, ?, 
-          COALESCE((SELECT SUM(so_luong * don_gia) FROM ChiTietHoaDon WHERE ma_hoa_don = h.ma_hoa_don), h.tong_tien), 
-          COALESCE((SELECT SUM(giam_gia) FROM ChiTietHoaDon WHERE ma_hoa_don = h.ma_hoa_don), 0), 
-          h.tong_tien, ?
-       FROM HoaDon h
-       WHERE h.ma_hoa_don = ?`,
-      [phuongThuc, diemCong, ma]
-    );
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [h.ma_hoa_don, h.ma_khach_hang, h.ma_nhan_vien, h.so_thu_tu, h.thoi_gian_tao, phuongThuc,
+        h.tien_hang === null ? h.tong_tien : h.tien_hang, h.giam === null ? 0 : h.giam, h.tong_tien, diemCong]);
   }
 
   return r.affectedRows;
@@ -157,5 +184,5 @@ async function laHoaDonHomNay(ma, conn = pool) {
 module.exports = {
   chotThanhToan, laHoaDonHomNay,
   homNay, soThuTuTiepTheo, taoHoaDon, themChiTiet, layHoaDon, danhSach,
-  khoaHoaDon, layDongCuaHoaDon, timDong, suaDong, xoaDong, doiTrangThai, ganKhach,
+  themKhuyenMaiDong, tongGiamMoiLy, khoaHoaDon, layDongCuaHoaDon, timDong, suaDong, xoaDong, doiTrangThai, ganKhach,
 };

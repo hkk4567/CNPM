@@ -1,5 +1,6 @@
 // san-pham – nghiệp vụ: danh mục (SP-01), sản phẩm (SP-02..SP-05), menu (POS-01).
 const repo = require('./san-pham.repository');
+const khuyenMaiService = require('../khuyen-mai/khuyen-mai.service');
 const { loi } = require('../../utils/loi-nghiep-vu');
 const { withTransaction } = require('../../utils/transaction');
 
@@ -44,9 +45,15 @@ async function xoaDanhMuc(ma) {
 // ---------- Sản phẩm ----------
 async function layMenu(query) {
   const rows = await repo.menu(query);
+  // 7b: giá sau giảm = giá gốc trừ mọi khuyến mãi đang hiệu lực (cộng dồn); khuyen_mai[] liệt kê từng mã và mức giảm mỗi ly
+  const gia = await khuyenMaiService.tinhKhuyenMai(rows);
   return rows.map(r => {
     const soLy = r.so_ly_toi_da === null ? null : Number(r.so_ly_toi_da);
-    return { ...r, so_ly_toi_da: soLy, du_nguyen_lieu: soLy === null || soLy >= 1 };
+    const g = gia.get(r.ma_san_pham);
+    return {
+      ...r, so_ly_toi_da: soLy, du_nguyen_lieu: soLy === null || soLy >= 1,
+      gia_sau_giam: g.gia_sau_giam, tong_giam_moi_ly: g.tong_giam_moi_ly, khuyen_mai: g.khuyen_mai,
+    };
   });
 }
 
