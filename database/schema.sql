@@ -9,7 +9,7 @@ USE cafe_management;
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS HoaDonDaThanhToan, ChiTietNhap, PhieuNhap, CongThuc, NguyenLieu, NhaCungCap,
+DROP TABLE IF EXISTS HoaDonDaThanhToan, ChiTietHoaDonKhuyenMai, ChiTietNhap, PhieuNhap, CongThuc, NguyenLieu, NhaCungCap,
   PhanCong, TaiKhoan, NhanVien, CaLamViec, ChiTietHoaDon, HoaDon,
   KhuyenMaiSanPham, KhuyenMai, KhachHang, SanPham, DanhMuc;
 SET FOREIGN_KEY_CHECKS = 1;
@@ -125,19 +125,30 @@ CREATE TABLE ChiTietHoaDon (
   ma_chi_tiet    INT AUTO_INCREMENT PRIMARY KEY,
   ma_hoa_don     INT NOT NULL,
   ma_san_pham    INT NOT NULL,
-  ma_khuyen_mai  INT NULL,                                   -- NULL = không giảm
   so_luong       INT NOT NULL,
   don_gia        DECIMAL(12,2) NOT NULL,                     -- snapshot giá lúc bán
-  giam_gia       DECIMAL(12,2) NOT NULL DEFAULT 0,           -- snapshot số tiền đã giảm
+  giam_gia       DECIMAL(12,2) NOT NULL DEFAULT 0,           -- snapshot TỔNG số tiền đã giảm của dòng = so_luong * tổng mức giảm mỗi ly (chi tiết từng mã: ChiTietHoaDonKhuyenMai)
   ghi_chu        VARCHAR(255) NULL,
   CONSTRAINT ck_cthd_soluong CHECK (so_luong >= 1),
   CONSTRAINT ck_cthd_gia CHECK (don_gia >= 0 AND giam_gia >= 0),
   KEY idx_cthd_hoadon   (ma_hoa_don),
   KEY idx_cthd_sanpham  (ma_san_pham),
-  KEY idx_cthd_khuyenmai (ma_khuyen_mai),
   CONSTRAINT fk_cthd_hoadon    FOREIGN KEY (ma_hoa_don)    REFERENCES HoaDon(ma_hoa_don),
-  CONSTRAINT fk_cthd_sanpham   FOREIGN KEY (ma_san_pham)   REFERENCES SanPham(ma_san_pham),
-  CONSTRAINT fk_cthd_khuyenmai FOREIGN KEY (ma_khuyen_mai) REFERENCES KhuyenMai(ma_khuyen_mai)
+  CONSTRAINT fk_cthd_sanpham   FOREIGN KEY (ma_san_pham)   REFERENCES SanPham(ma_san_pham)
+) ENGINE=InnoDB;
+
+-- Một sản phẩm có thể áp NHIỀU mã khuyến mãi cùng lúc (cộng dồn trên giá gốc). Mỗi dòng bảng này = một mã được áp cho một dòng hóa đơn,
+-- lưu MỨC GIẢM TRÊN MỖI LY (snapshot lúc gọi món). Tổng giảm của mã trên dòng = muc_giam_moi_ly * ChiTietHoaDon.so_luong;
+-- lượt sử dụng của mã = SUM(ChiTietHoaDon.so_luong) (đếm theo ly). Xóa dòng hóa đơn thì xóa theo; mã đã được dùng thì không xóa được (KM-03).
+CREATE TABLE ChiTietHoaDonKhuyenMai (
+  ma_chi_tiet      INT NOT NULL,
+  ma_khuyen_mai    INT NOT NULL,
+  muc_giam_moi_ly  DECIMAL(12,2) NOT NULL,
+  PRIMARY KEY (ma_chi_tiet, ma_khuyen_mai),
+  KEY idx_cthdkm_khuyenmai (ma_khuyen_mai),
+  CONSTRAINT ck_cthdkm_muc CHECK (muc_giam_moi_ly > 0),
+  CONSTRAINT fk_cthdkm_chitiet  FOREIGN KEY (ma_chi_tiet)   REFERENCES ChiTietHoaDon(ma_chi_tiet) ON DELETE CASCADE,
+  CONSTRAINT fk_cthdkm_khuyenmai FOREIGN KEY (ma_khuyen_mai) REFERENCES KhuyenMai(ma_khuyen_mai)
 ) ENGINE=InnoDB;
 
 -- ---------- KHO & NHẬP HÀNG ----------

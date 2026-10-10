@@ -1,0 +1,73 @@
+{
+ "lan": 120,
+ "tai": 0,
+ "files": [
+  "tests/khach-hang.test.js",
+  "tests/khuyen-mai-ap-dung.test.js",
+  "tests/khuyen-mai.test.js",
+  "tests/hoa-don-thanh-toan.test.js"
+ ],
+ "tong_loi": 10,
+ "loi": [
+  {
+   "lan": 43,
+   "loai": "test_that_bai",
+   "ten_test": "thanh toán: mức giảm của dòng được trừ vào tổng; ba phương thức đều dùng được; điểm cộng dồn",
+   "thong_diep": "[TEST START] thanh toán: kiểm tra đầu vào; hóa đơn không tồn tại; chưa đăng nhập | ✔ thanh toán: khách vãng lai không có điểm; làm tròn xuống (74.979673ms) | [TEST START] thanh toán hai lần: lần 2 bị 409; kho giữ nguyên số đã trừ lúc gọi, điểm không bị cộng lại | ✔ thanh toán: kiểm tra đầu vào; hóa đơn không tồn tại; chưa đăng nhập (40.097839ms) | [TEST START] đã hủy thì không thanh toán được; hủy"
+  },
+  {
+   "lan": 43,
+   "loai": "log_loi",
+   "ten_test": "(stderr)",
+   "thong_diep": "✔ thanh toán: chốt tổng từ các dòng (kể cả sau khi sửa), cộng điểm, KHÔNG đụng kho (đã trừ lúc gọi) (532.972059ms) | Error: Deadlock found when trying to get lock; try restarting transaction | at Object.chotThanhToan (/home/claude/work/cnpm/CNPM-main/backend/src/modules/hoa-don/hoa-don.repository.js:164:16) | at process.processTicksAndRejections (node:internal/process/task_queues:105:5)"
+  },
+  {
+   "lan": 43,
+   "loai": "log_loi",
+   "ten_test": "(stderr)",
+   "thong_diep": "at async exports.thanhToan (/home/claude/work/cnpm/CNPM-main/backend/src/modules/hoa-don/hoa-don.controller.js:13:49) { | code: 'ER_LOCK_DEADLOCK', | errno: 1213, | sqlState: '40001',"
+  },
+  {
+   "lan": 43,
+   "loai": "log_loi",
+   "ten_test": "(stderr)",
+   "thong_diep": "code: 'ER_LOCK_DEADLOCK', | errno: 1213, | sqlState: '40001', | sqlMessage: 'Deadlock found when trying to get lock; try restarting transaction',"
+  },
+  {
+   "lan": 43,
+   "loai": "log_loi",
+   "ten_test": "(stderr)",
+   "thong_diep": "sqlState: '40001', | sqlMessage: 'Deadlock found when trying to get lock; try restarting transaction', | sql: 'INSERT INTO HoaDonDaThanhToan (\\n' + | '          ma_hoa_don, ma_khach_hang, ma_nhan_vien, so_thu_tu,\\n' +"
+  },
+  {
+   "lan": 60,
+   "loai": "test_that_bai",
+   "ten_test": "thanh toán 2 lần (lỗi 409): bảng HoaDonDaThanhToan không bị ghi đè hay ghi thêm dòng dư",
+   "thong_diep": "✔ trigger CSDL: chặn đứng UPDATE và DELETE trên bảng HoaDonDaThanhToan (70.039794ms) | ✔ KH-01: mọi quyền tạo được khách, điểm bắt đầu từ 0 (392.602075ms) | ✔ KH-01: trùng SĐT -> 409 TRUNG_SDT; chưa đăng nhập -> 401 (20.222467ms) | ✔ KH-01: đầu vào sai -> 400 (SĐT sai định dạng, tên rỗng, thiếu trường, gửi điểm) (38.388316ms) | ✔ KH-03: tìm theo tên (không phân biệt dấu/hoa thường) và theo SĐT một"
+  },
+  {
+   "lan": 60,
+   "loai": "log_loi",
+   "ten_test": "(stderr)",
+   "thong_diep": "✔ thanh toán thành công: snapshot phải được lưu vào bảng HoaDonDaThanhToan (37.772604ms) | Error: Deadlock found when trying to get lock; try restarting transaction | at Object.chotThanhToan (/home/claude/work/cnpm/CNPM-main/backend/src/modules/hoa-don/hoa-don.repository.js:164:16) | at process.processTicksAndRejections (node:internal/process/task_queues:105:5)"
+  },
+  {
+   "lan": 60,
+   "loai": "log_loi",
+   "ten_test": "(stderr)",
+   "thong_diep": "at async exports.thanhToan (/home/claude/work/cnpm/CNPM-main/backend/src/modules/hoa-don/hoa-don.controller.js:13:49) { | code: 'ER_LOCK_DEADLOCK', | errno: 1213, | sqlState: '40001',"
+  },
+  {
+   "lan": 60,
+   "loai": "log_loi",
+   "ten_test": "(stderr)",
+   "thong_diep": "code: 'ER_LOCK_DEADLOCK', | errno: 1213, | sqlState: '40001', | sqlMessage: 'Deadlock found when trying to get lock; try restarting transaction',"
+  },
+  {
+   "lan": 60,
+   "loai": "log_loi",
+   "ten_test": "(stderr)",
+   "thong_diep": "sqlState: '40001', | sqlMessage: 'Deadlock found when trying to get lock; try restarting transaction', | sql: 'INSERT INTO HoaDonDaThanhToan (\\n' + | '          ma_hoa_don, ma_khach_hang, ma_nhan_vien, so_thu_tu,\\n' +"
+  }
+ ]
+}

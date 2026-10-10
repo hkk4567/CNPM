@@ -1,0 +1,13 @@
+{
+ "lan": 40,
+ "tai": 0,
+ "files": [
+  "tests/kho-nhap-hang.test.js",
+  "tests/kho-quan-tri.test.js",
+  "tests/kho.test.js",
+  "tests/hoa-don.test.js",
+  "tests/san-pham.test.js"
+ ],
+ "tong_loi": 0,
+ "loi": []
+}

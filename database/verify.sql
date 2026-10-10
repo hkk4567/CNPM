@@ -28,9 +28,11 @@ START TRANSACTION;
 INSERT INTO HoaDon (ma_khach_hang, ma_nhan_vien, so_thu_tu) VALUES (1, 3, 1);
 SET @id = LAST_INSERT_ID();
 -- Hai dòng CÙNG sản phẩm 2, ghi chú khác nhau (kiểm tra khóa chính ma_chi_tiet). giam_gia = tổng giảm của dòng.
-INSERT INTO ChiTietHoaDon (ma_hoa_don, ma_san_pham, ma_khuyen_mai, so_luong, don_gia, giam_gia, ghi_chu) VALUES
- (@id, 2, 1,    2, 29000, 5800, 'it duong'),
- (@id, 2, NULL, 1, 29000,    0, 'binh thuong');
+INSERT INTO ChiTietHoaDon (ma_hoa_don, ma_san_pham, so_luong, don_gia, giam_gia, ghi_chu) VALUES
+ (@id, 2, 2, 29000, 5800, 'it duong'),
+ (@id, 2, 1, 29000,    0, 'binh thuong');
+-- Mã khuyến mãi 1 áp cho dòng đầu, mức giảm MỖI LY 2900 (x 2 ly = 5800 = giam_gia của dòng)
+INSERT INTO ChiTietHoaDonKhuyenMai (ma_chi_tiet, ma_khuyen_mai, muc_giam_moi_ly) VALUES (LAST_INSERT_ID(), 1, 2900);
 
 -- [LOI] 1/7: SĐT khách trùng (UNIQUE)
 INSERT INTO KhachHang (ten_khach_hang, so_dien_thoai) VALUES ('Trung SDT', '0911111111');

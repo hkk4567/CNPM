@@ -1,0 +1,11 @@
+{
+ "lan": 40,
+ "tai": 0,
+ "files": [
+  "tests/kho-quan-tri.test.js",
+  "tests/kho.test.js",
+  "tests/hoa-don.test.js"
+ ],
+ "tong_loi": 0,
+ "loi": []
+}

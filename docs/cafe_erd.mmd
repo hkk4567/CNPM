@@ -28,10 +28,9 @@ erDiagram
         int ma_chi_tiet PK
         int ma_hoa_don FK
         int ma_san_pham FK
-        int ma_khuyen_mai FK "NULL neu khong giam"
         int so_luong
         decimal don_gia
-        decimal giam_gia
+        decimal giam_gia "tong giam cua dong = so_luong x tong muc giam moi ly"
         string ghi_chu "it duong, khong da..."
     }
 
@@ -125,6 +124,12 @@ erDiagram
         decimal don_gia_nhap
     }
 
+    ChiTietHoaDonKhuyenMai {
+        int ma_chi_tiet PK, FK
+        int ma_khuyen_mai PK, FK
+        decimal muc_giam_moi_ly "snapshot muc giam tren moi ly"
+    }
+
     HoaDonDaThanhToan {
         int ma_hoa_don PK, FK
         int ma_khach_hang FK
@@ -146,7 +151,8 @@ erDiagram
 
     KhuyenMai ||--o{ KhuyenMaiSanPham : "ap_dung"
     SanPham ||--o{ KhuyenMaiSanPham : "duoc_giam"
-    KhuyenMai |o--o{ ChiTietHoaDon : "ap_dung_cho"
+    ChiTietHoaDon ||--o{ ChiTietHoaDonKhuyenMai : "duoc_ap"
+    KhuyenMai ||--o{ ChiTietHoaDonKhuyenMai : "ap_dung_cho"
 
     KhachHang |o--o{ HoaDon : "thanh_toan"
     NhanVien ||--o{ HoaDon : "nhap_order"
