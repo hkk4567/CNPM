@@ -302,3 +302,15 @@
 - File mới: api/kho.api.js, components/Truong.jsx, pages/kho/{index,TonKhoTab,NguyenLieuTab,NccTab,LichSuNhapTab,PhieuNhapForm}.jsx. Sửa: MainLayout (mục menu có hàm khop để tô sáng đúng), AppRoutes, Icon, DataTable, styles/index.css.
 - Kiểm tra: `npm run build` qua; frontend/scripts/smoke-ui.mjs mở rộng thêm 9 kiểm tra cho Kho (cảnh báo, thứ tự bảng, điền sẵn phiếu, tổng tiền, nội dung gửi lên đúng, báo lỗi phiếu trống, chi tiết phiếu), tổng 16/16 qua, không có lỗi console. Ảnh mới: anh-smoke/4-ton-kho.png, 5-nguyen-lieu.png, 6-lich-su-nhap.png.
 - Giới hạn đã biết: danh sách nhà cung cấp và nguyên liệu trong form phiếu nhập lấy tối đa 100 dòng đầu (giới hạn moi_trang của API); ô ngày giờ dùng định dạng theo ngôn ngữ trình duyệt.
+
+
+## Bước 6 – Giao diện web đợt 3: Khuyến mãi (đã làm; build + test giao diện bằng dữ liệu giả; CHƯA chạy với backend/MySQL thật)
+- Menu "Khuyến mãi" -> /khuyen-mai (pages/khuyen-mai/{index,KhuyenMaiPanel,SanPhamApDung,HieuQua}.jsx, api/khuyen-mai.api.js). Bản mẫu chưa có màn này, dựng theo cùng khung bảng + panel đã duyệt.
+- KM-06 danh sách: lọc theo trạng thái (đang chạy / sắp diễn ra / hết hạn) và theo sản phẩm; cột mức giảm (% hoặc đồng), thời gian, số sản phẩm, số ly đã giảm; dòng hết hạn làm mờ.
+- KM-01/02 thêm/sửa trong panel: tên, loại giảm, mức giảm, bắt đầu, kết thúc; kiểm tra trước ở client (phần trăm <= 100, bắt đầu < kết thúc). Thêm mới có thể tick sản phẩm áp dụng ngay (ma_san_pham[]).
+- KM-04/05 sản phẩm áp dụng: ô chọn + nút Thêm, nút × để gỡ; sản phẩm ngừng bán vẫn gán được (có ghi chú).
+- KM-07 hiệu quả: số hóa đơn, số ly áp mã, tiền đã giảm (riêng mã này), doanh thu sau giảm; lọc theo ngày thanh toán, chỉ tính hóa đơn đã thanh toán.
+- KM-03 xóa: nếu khuyến mãi đã áp vào hóa đơn, backend trả 409 KHUYEN_MAI_DA_DUOC_DUNG; giao diện hiện thông báo kèm nút "Ngừng áp dụng ngay" (đặt ngay_ket_thuc về hiện tại, đúng gợi ý của backend).
+- Quyết định: ngày giờ gửi lên backend ở dạng ISO có múi giờ (toISOString) nên không lệch giờ dù trình duyệt và máy chủ khác múi giờ; hiển thị theo giờ máy người dùng. Thêm utils/format.js: sangOGioNhap, tuOGioNhap, ngayGioNgan. Panel dài nên có max-height + cuộn riêng (cũng áp cho panel Sản phẩm, Kho).
+- Kiểm tra: build qua; smoke-ui.mjs thêm 7 kiểm tra Khuyến mãi (3 dòng, chip Hết hạn, sản phẩm áp dụng, hiệu quả, lỗi 409 + nút ngừng áp dụng, tạo trống báo lỗi, nội dung gửi lên), tổng 24/24 qua, chạy lặp 3 lần ổn định. Ảnh: anh-smoke/7-khuyen-mai.png. Đã sửa 2 chỗ test chạy không ổn định (chờ phản hồi giả, chờ danh sách nguyên liệu tải xong).
+- Giới hạn đã biết: ô chọn sản phẩm lấy tối đa 100 sản phẩm đầu (giới hạn moi_trang của API).

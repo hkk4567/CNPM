@@ -5,6 +5,7 @@ import MainLayout from '../layouts/MainLayout.jsx';
 import DangNhap from '../pages/auth/index.jsx';
 import SanPham from '../pages/san-pham/index.jsx';
 import Kho from '../pages/kho/index.jsx';
+import KhuyenMai from '../pages/khuyen-mai/index.jsx';
 import ChuaLam from '../pages/chung/ChuaLam.jsx';
 import KhongCoQuyen from '../pages/chung/KhongCoQuyen.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -27,7 +28,7 @@ export default function AppRoutes() {
       <Route element={<RequireRole quyen={QUAN_TRI} />}>
         <Route element={<MainLayout />}>
           <Route path="/san-pham" element={<SanPham />} />
-          <Route path="/khuyen-mai" element={<ChuaLam ten="Khuyến mãi" ma="KM-01..07" />} />
+          <Route path="/khuyen-mai" element={<KhuyenMai />} />
           <Route path="/kho/:tab?" element={<Kho />} />
           <Route path="/nhap-hang" element={<Navigate to="/kho/lich-su-nhap" replace />} />
           <Route path="/khach-hang" element={<ChuaLam ten="Khách hàng" ma="KH-01..05" />} />

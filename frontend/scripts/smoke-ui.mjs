@@ -21,6 +21,13 @@ const nlKho = [[1, 'Trân châu', 'g', 800, 1000], [2, 'Trà đen', 'g', 2000, 5
 const nccKho = [{ ma_ncc: 1, ten_ncc: 'Đại lý Sữa và Nguyên liệu Sài Gòn', so_dien_thoai: '0901234567', dia_chi: 'Quận 5' }, { ma_ncc: 2, ten_ncc: 'Công ty Cà phê Tây Nguyên', so_dien_thoai: null, dia_chi: null }];
 const phieu = [{ ma_phieu_nhap: 4, ma_ncc: 1, ten_ncc: nccKho[0].ten_ncc, ma_nhan_vien: 2, ten_nhan_vien: 'Trần Thị Quản Lý', ngay_nhap: '2026-10-10T08:30:00.000Z', tong_tien_nhap: '2250000.00', so_dong: 2 }];
 let phieuPost = null;
+const ngayTu = n => new Date(Date.now() + n * 864e5).toISOString();
+const kmDs = [
+  { ma_khuyen_mai: 3, ten_khuyen_mai: 'Khuyến mãi đã hết hạn', loai_giam: 'phan_tram', gia_tri_giam: '20.00', ngay_bat_dau: ngayTu(-30), ngay_ket_thuc: ngayTu(-1), trang_thai: 'het_han', so_san_pham: 1, so_luot_dung: '0' },
+  { ma_khuyen_mai: 2, ten_khuyen_mai: 'Giảm 5.000đ trà sữa', loai_giam: 'so_tien', gia_tri_giam: '5000.00', ngay_bat_dau: ngayTu(-1), ngay_ket_thuc: ngayTu(30), trang_thai: 'dang_chay', so_san_pham: 1, so_luot_dung: '4' },
+  { ma_khuyen_mai: 1, ten_khuyen_mai: 'Giảm 10% cà phê', loai_giam: 'phan_tram', gia_tri_giam: '10.00', ngay_bat_dau: ngayTu(-1), ngay_ket_thuc: ngayTu(30), trang_thai: 'dang_chay', so_san_pham: 3, so_luot_dung: '12' },
+];
+let kmPost = null;
 const nguoi = { ma_tai_khoan: 1, ma_nhan_vien: 2, ho_ten: 'Trần Thị Quản Lý', quyen_truy_cap: 'quan_ly' };
 const json = (route, body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -28,8 +35,8 @@ const trinhDuyet = await chromium.launch();
 const trang = await trinhDuyet.newPage({ viewport: { width: 1360, height: 900 } });
 const loiConsole = [];
 trang.on('pageerror', e => loiConsole.push(e.message));
-// Bỏ qua: tải font Google bị chặn trong sandbox, và 401 do chính bài test cố ý đăng nhập sai
-trang.on('console', m => { if (m.type() === 'error' && !/ERR_TUNNEL|ERR_NAME|fonts\.g|401/.test(m.text())) loiConsole.push(m.text()); });
+// Bỏ qua: tải font Google bị chặn trong sandbox, và 401/409 do chính bài test cố ý gây ra
+trang.on('console', m => { if (m.type() === 'error' && !/ERR_TUNNEL|ERR_NAME|fonts\.g|401|409/.test(m.text())) loiConsole.push(m.text()); });
 
 await trang.route('**/api/**', route => {
   const u = new URL(route.request().url());
@@ -56,6 +63,11 @@ await trang.route('**/api/**', route => {
   if (p === '/kho/phieu-nhap' && pt === 'POST') { phieuPost = JSON.parse(route.request().postData()); return json(route, { ok: true, data: { ma_phieu_nhap: 5, tong_tien_nhap: '450000.00', chi_tiet: [], ton_moi: [] } }, 201); }
   if (p === '/kho/phieu-nhap') return json(route, { ok: true, data: phieu, tong_tien_nhap: '2250000.00', tong_so_ban_ghi: 1, trang: 1, moi_trang: 10 });
   if (p === '/kho/phieu-nhap/4') return json(route, { ok: true, data: { ...phieu[0], chi_tiet: [{ ma_nguyen_lieu: 1, ten_nguyen_lieu: 'Trân châu', don_vi_tinh: 'g', so_luong_nhap: '5000.000', don_gia_nhap: '90.00', thanh_tien: '450000.00' }, { ma_nguyen_lieu: 4, ten_nguyen_lieu: 'Cà phê bột', don_vi_tinh: 'g', so_luong_nhap: '10000.000', don_gia_nhap: '180.00', thanh_tien: '1800000.00' }] } });
+  if (p === '/khuyen-mai' && pt === 'POST') { kmPost = JSON.parse(route.request().postData()); return json(route, { ok: true, data: { ...kmDs[2], ma_khuyen_mai: 4, ten_khuyen_mai: kmPost.ten_khuyen_mai, san_pham: [] } }, 201); }
+  if (p === '/khuyen-mai') return json(route, { ok: true, data: kmDs, tong_so_ban_ghi: 3, trang: 1, moi_trang: 10 });
+  if (p === '/khuyen-mai/1' && pt === 'GET') return json(route, { ok: true, data: { ...kmDs[2], san_pham: sp.slice(0, 3) } });
+  if (p === '/khuyen-mai/1/bao-cao') return json(route, { ok: true, data: { so_hoa_don: 9, so_luong_ban: 12, tong_tien_giam: 34800, doanh_thu_sau_giam: 313200 } });
+  if (p === '/khuyen-mai/1' && pt === 'DELETE') return json(route, { ok: false, loi: 'KHUYEN_MAI_DA_DUOC_DUNG', thong_bao: 'Khuyến mãi đã được áp trong hóa đơn nên không xóa được; hãy đặt ngay_ket_thuc về thời điểm hiện tại để ngừng áp dụng' }, 409);
   return json(route, { ok: false, loi: 'KHONG_TIM_THAY', thong_bao: `chưa giả lập ${pt} ${p}` }, 404);
 });
 
@@ -65,7 +77,8 @@ await trang.goto(GOC);
 await trang.waitForURL('**/dang-nhap');
 await trang.screenshot({ path: RA + '1-dang-nhap.png' });
 await trang.fill('#ten', 'quanly'); await trang.fill('#mk', 'sai'); await trang.click('button[type=submit]');
-kiemTra(await trang.getByRole('alert').filter({ hasText: 'Sai tên đăng nhập' }).count() === 1, 'đăng nhập sai hiện lỗi');
+await trang.getByRole('alert').filter({ hasText: 'Sai tên đăng nhập' }).waitFor(); // chờ phản hồi giả
+kiemTra(true, 'đăng nhập sai hiện lỗi');
 await trang.fill('#mk', 'dung'); await trang.click('button[type=submit]');
 await trang.waitForURL('**/san-pham');
 await trang.locator('tbody tr').first().waitFor();
@@ -86,6 +99,7 @@ kiemTra(await trang.getByText('Trân châu còn 800 g').count() === 1, 'cảnh b
 kiemTra(await trang.locator('tbody tr').count() === 6, 'tồn kho có 6 nguyên liệu');
 kiemTra((await trang.locator('tbody tr').first().innerText()).includes('Trân châu'), 'nguyên liệu sắp hết xếp đầu bảng');
 await trang.getByRole('button', { name: 'Lập phiếu nhập' }).first().click();
+await trang.getByLabel('Nguyên liệu dòng 1').locator('option[value="1"]').waitFor({ state: 'attached' }); // chờ danh sách nguyên liệu tải xong
 kiemTra(await trang.getByLabel('Nguyên liệu dòng 1').inputValue() === '1', 'bấm cảnh báo điền sẵn Trân châu vào phiếu');
 await trang.getByLabel('Nhà cung cấp').selectOption('1');
 await trang.getByLabel('Số lượng dòng 1').fill('5000');
@@ -111,6 +125,32 @@ await trang.getByRole('dialog', { name: 'Phiếu nhập #4' }).getByText('1.800.
 kiemTra(true, 'chi tiết phiếu nhập #4 hiện đúng thành tiền');
 await trang.screenshot({ path: RA + '6-lich-su-nhap.png' });
 await trang.keyboard.press('Escape');
+// ---- Khuyến mãi ----
+await trang.getByRole('link', { name: 'Khuyến mãi' }).click();
+await trang.waitForURL('**/khuyen-mai');
+await trang.locator('tbody tr').first().waitFor();
+kiemTra(await trang.locator('tbody tr').count() === 3, 'khuyến mãi có 3 dòng');
+kiemTra(await trang.locator('tbody tr', { hasText: 'hết hạn' }).getByText('Hết hạn', { exact: true }).count() === 1, 'khuyến mãi cũ hiện chip Hết hạn');
+await trang.locator('tbody tr', { hasText: 'Giảm 10% cà phê' }).click();
+await trang.getByRole('complementary', { name: 'Sửa khuyến mãi' }).waitFor();
+await trang.locator('.ds-doc').getByText('Cà phê đen').waitFor();
+await trang.getByText('313.200đ').waitFor();
+kiemTra(await trang.getByLabel('Gỡ Cà phê sữa').count() === 1, 'panel liệt kê sản phẩm áp dụng, có nút gỡ');
+kiemTra(await trang.getByText('34.800đ').count() === 1, 'hiệu quả hiện tiền đã giảm 34.800đ');
+await trang.screenshot({ path: RA + '7-khuyen-mai.png' });
+await trang.getByRole('button', { name: 'Xóa khuyến mãi' }).click();
+await trang.getByRole('dialog').getByRole('button', { name: 'Xóa' }).click();
+await trang.getByRole('button', { name: 'Ngừng áp dụng ngay' }).waitFor();
+kiemTra(true, 'xóa khuyến mãi đã dùng: báo 409 kèm nút Ngừng áp dụng ngay');
+await trang.getByRole('button', { name: 'Thêm khuyến mãi' }).click();
+await trang.getByRole('button', { name: 'Tạo khuyến mãi' }).click();
+kiemTra(await trang.getByText('Nhập tên khuyến mãi').count() === 1, 'tạo khuyến mãi trống báo thiếu tên');
+await trang.getByLabel('Tên khuyến mãi').fill('Giảm 3 món');
+await trang.getByLabel('Giảm (%)').fill('15');
+await trang.getByLabel('Bạc xỉu').check();
+await trang.getByRole('button', { name: 'Tạo khuyến mãi' }).click();
+await trang.getByText('Đã tạo khuyến mãi').waitFor();
+kiemTra(kmPost?.loai_giam === 'phan_tram' && kmPost.gia_tri_giam === 15 && kmPost.ma_san_pham?.[0] === 3 && /Z$/.test(kmPost.ngay_bat_dau), 'gửi đúng nội dung khuyến mãi (có ngày giờ ISO)');
 await trang.getByRole('link', { name: 'Sản phẩm' }).click();
 await trang.setViewportSize({ width: 390, height: 800 });
 await trang.waitForTimeout(500); // chờ hiệu ứng trượt của menu
