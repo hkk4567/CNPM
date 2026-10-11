@@ -232,3 +232,41 @@
 - Mutation đã thử (đều bị phát hiện): bỏ làm tròn nửa lên; bỏ cộng tồn dòng đầu; bỏ chặn tồn vượt giới hạn; bỏ xóa công thức cũ; bỏ khóa sản phẩm; bỏ `+ INTERVAL 1 DAY`; đổi thứ tự sắp xếp; bỏ kiểm tra lặp nguyên liệu; bỏ khóa NCC chia sẻ. Bỏ sort JS các dòng nhập là mutation tương đương (thứ tự khóa do `ORDER BY ... FOR UPDATE` trong SQL quyết định).
 - Lưu ý vận hành sandbox: mysqld trong sandbox thỉnh thoảng tự tắt (ECONNREFUSED hàng loạt); kết quả mutation chạy lúc DB tắt không có giá trị — kiểm tra `mysql -uroot -e "select 1"` trước.
 - Docs: build_doc.js (KHO-03/04/05, Phụ lục B) cập nhật và sinh lại .docx.
+
+## Bước 9a: AUTH-02 đổi mật khẩu + NS-01..03 nhân viên/tài khoản
+- Routes: `POST /api/auth/doi-mat-khau` (A/Q/N, của chính mình); `/api/nhan-su`: `POST` (A), `GET` danh sách (A/Q, `tu_khoa`, `trang_thai`, `quyen_truy_cap`, phân trang), `GET /:ma` (A/Q), `PATCH /:ma` (A, Q sửa thông tin), `DELETE /:ma` (A). Gắn trong `src/routes.js`.
+- Quyết định (mặc định, có thể đổi):
+  1. Chính sách mật khẩu (AUTH-02, NS-01, đặt lại ở NS-02): 8–72 byte (giới hạn bcrypt), có ít nhất một chữ cái và một chữ số. Mật khẩu mới phải khác cũ (400 `MAT_KHAU_MOI_TRUNG_CU`); sai mật khẩu cũ: 401 `SAI_MAT_KHAU_CU` (kiểm trước). Không có cột "phiên bản mật khẩu" nên token đã cấp vẫn dùng được đến khi hết hạn (nếu cần vô hiệu hóa token khi đổi mật khẩu: thêm cột `TaiKhoan.mat_khau_doi_luc` và so với `iat`).
+  2. Tên đăng nhập: 3–50 ký tự `A-Za-z0-9._-`; UNIQUE không phân biệt hoa thường. Sửa nhân viên KHÔNG đổi tên đăng nhập và không đổi `trang_thai` (nghỉ việc đi qua NS-03).
+  3. NS-02: quản lý không đổi quyền, không đặt lại mật khẩu, không sửa tài khoản admin (403, không ghi gì). Admin thêm được `mat_khau` (đặt lại mật khẩu cho người khác – đặc tả không có, tôi bổ sung vì thiếu thì quên mật khẩu phải sửa SQL). Không hạ quyền admin cuối (409 `ADMIN_CUOI_CUNG`). Quyền đổi có hiệu lực ngay (middleware tra lại CSDL mỗi request).
+  4. NS-03: chưa có hóa đơn/phiếu nhập/phân công TRƯỚC hôm nay -> xóa hẳn kèm tài khoản và phân công từ hôm nay (`{da_xoa:true}`); có lịch sử -> `nghi_viec` + gỡ phân công từ hôm nay (`{da_xoa:false, trang_thai, ly_do, so_phan_cong_da_go}`), gọi lại vẫn 200. 409: tự xóa mình (`KHONG_XOA_CHINH_MINH`), xóa admin cuối.
+  5. Mọi thao tác GHI nhân sự chạy dưới khóa tên `nhan_su` (GET_LOCK, qua `withTransaction({khoa})`) nên nối tiếp nhau: hai admin không thể cùng hạ/xóa nhau để còn 0 admin; không cần lo thứ tự khóa dòng. Băm bcrypt làm NGOÀI transaction.
+- Test: `tests/nhan-su.test.js` (18 test, tiền tố `TEST_NS_*`/`tns_*`) và `tests/auth-doi-mat-khau.test.js` (4 test, `TEST_DMK_*`/`tam_dmk_*`). Hai file không tạo/đụng tài khoản mẫu; `auth-doi-mat-khau` KHÔNG tạo tài khoản admin vì `nhan-su.test.js` đếm số admin. Test "hạ quyền admin cuối" chạy trên admin mẫu nhưng có `finally` khôi phục quyền admin bằng SQL.
+- BÀI HỌC: lần đầu mutation "bỏ chặn hạ quyền admin cuối" làm test thật sự hạ quyền admin mẫu trong CSDL -> mọi test sau 403. Đã thêm khôi phục tự động. Nếu admin mẫu bị mất quyền: `UPDATE TaiKhoan SET quyen_truy_cap='admin' WHERE ten_dang_nhap='admin';`
+- Tổng bộ test 182/182; `lap-test.js` 15 lần (nhan-su, auth-doi-mat-khau, auth, phan-quyen): 0 lỗi. Mutation đã thử (đều bị phát hiện): bỏ chặn Q sửa admin; bỏ chặn Q đổi quyền/mật khẩu; bỏ chặn hạ admin cuối; bỏ chặn tự xóa; bỏ gỡ phân công tương lai; bỏ từng nguồn lịch sử (hóa đơn/phiếu nhập/phân công cũ); đổi `<` thành `<=` ở phân công cũ; bỏ kiểm tra mật khẩu cũ/mới trùng cũ/chính sách chữ+số. Sống sót: bỏ khóa tên `nhan_su` ở NS-01 (UNIQUE + transaction vẫn đúng; khóa chỉ cần cho đếm admin).
+- Docs: build_doc.js (AUTH-02, NS-01..03, Phụ lục B) cập nhật và sinh lại .docx.
+
+## Bước 9b – Ca làm việc, xếp lịch, lịch tuần (NS-04..NS-07)
+- Route tĩnh `/ca-lam-viec`, `/phan-cong`, `/lich-tuan` đăng ký TRƯỚC `/:ma` trong `nhan-su.routes.js`.
+- Quyết định thiết kế: ca không qua nửa đêm (bắt đầu < kết thúc, 400); tên ca được trùng; giờ trả dạng `HH:mm:ss`, ngày `YYYY-MM-DD` (dùng DATE_FORMAT/TIME_FORMAT để tránh lệch múi giờ JS).
+- NS-05: một ngày hoặc mảng (1–62), all-or-nothing; chỉ từ hôm nay (theo CURDATE của DB); 409 `DA_XEP_LICH` + `chi_tiet.ngay_da_xep`; 409 `NHAN_VIEN_NGHI_VIEC`. Khóa: NhanVien (share) → CaLamViec (share); NS-03 chạy dưới named lock `nhan_su` + khóa dòng nhân viên nên không còn lịch tương lai của người đã nghỉ.
+- NS-04 xóa ca: khóa dòng ca → kiểm tra phân công → FK 1451 là chốt cuối (409 `CA_DA_CO_PHAN_CONG`).
+- NS-06: dùng query params, xóa được mọi ngày. NS-07: `tu_ngay` phải là thứ Hai (mặc định thứ Hai tuần này), trả thêm `tu_ngay`/`den_ngay`; role N chỉ xem của mình (xin người khác → 403).
+- Query KHÔNG strict (quy ước chung của dự án): tham số thừa bị bỏ qua.
+- Test: `tests/nhan-su-lich.test.js` (22 test, tiền tố `TEST_LICH_`). Dữ liệu mẫu (ca 1–3, phân công mẫu) không bị đụng; lịch tuần của test dùng tuần xa và lọc theo nhân viên riêng.
+- Mutation đã kiểm: bỏ start<end, bỏ chặn quá khứ, bỏ chặn nghỉ việc, bỏ kiểm tra đã xếp, bỏ giới hạn role N, bỏ 403 người khác, bỏ LOCK IN SHARE MODE, đổi cửa sổ 7→8 ngày, đảo thứ tự giờ → test đều đỏ.
+- Tổng: 204 test qua.
+
+## Bước 9c – KH-05 và báo cáo BC-01..BC-06
+- KH-05: `GET /api/khach-hang/top` (A/Q), đặt trước các route `/:ma`. Query `tu_ngay`, `den_ngay`, `top` (mặc định 10, 1–100). Đọc `HoaDonDaThanhToan` JOIN `KhachHang`, bỏ khách vãng lai; xếp tổng chi tiêu ↓, số đơn ↓, mã khách ↑. Trả thêm `so_dien_thoai`.
+- Module `bao-cao` (mount `/api/bao-cao`, chỉ A/Q, chỉ ĐỌC): `/doanh-thu` (BC-01), `/san-pham-ban-chay` (BC-02), `/doanh-thu-theo-danh-muc` (BC-03), `/phuong-thuc-thanh-toan` (BC-04), `/chi-phi-vs-doanh-thu` (BC-05), `/doanh-thu-theo-nhan-vien` (BC-06).
+- Quy ước chung: nguồn doanh thu là `HoaDonDaThanhToan` (snapshot bất biến), lọc theo NGÀY THANH TOÁN, `tu_ngay`/`den_ngay` gồm cả hai đầu (`< den_ngay + 1 DAY`), cùng quy ước với KH-04 và KM-07. Hóa đơn chưa thanh toán/hủy không có snapshot nên không bao giờ lọt vào báo cáo. Helper chung: `src/utils/loc-ngay.js`.
+- Kỳ (`nhom`): ngày `YYYY-MM-DD`; tuần = ngày thứ Hai đầu tuần; tháng `YYYY-MM`. Chỉ trả kỳ có dữ liệu (không điền kỳ 0). BC-05 hợp nhất hai phía theo kỳ nên kỳ chỉ có nhập hàng hoặc chỉ có bán hàng đều xuất hiện; `chenh_lech` có thể âm.
+- Doanh thu theo sản phẩm/danh mục tính từ dòng: `so_luong*don_gia - giam_gia`; tổng BC-03 khớp tổng BC-01 (test kiểm chứng). `ty_le` làm tròn 2 chữ số.
+- Ghi chú kiến trúc: repository `bao-cao` đọc trực tiếp các bảng của module khác (chỉ SELECT) — chấp nhận cho báo cáo vì không thể ghép qua service mà vẫn gom được bằng SQL.
+- Test: `tests/bao-cao.test.js` (19 test). Dữ liệu cô lập trong cửa sổ ngày năm 2031 + tiền tố `TEST_BCAO_`; hóa đơn chèn thẳng bằng SQL kèm snapshot, dọn bằng `xoaSnapshot`. Mutation đã kiểm: biên ngày (cả hai đầu), tuần, doanh thu dòng, thứ tự đồng hạng (BC-02, KH-05), tỷ lệ, hợp nhất BC-05, dấu chênh lệch, role A/Q, top mặc định → đều có test đỏ.
+- Tổng: 222 test qua.
+
+## Rà soát backend cuối (sau 9c)
+- Toàn bộ bộ test: 222/222. `lap-test --ddl` lặp nhiều lần: 0 lỗi (xem log trong `logs/`).
+- Backend đã đủ: AUTH-01..02, SP, KH-01..05, KM-01..07, POS, KHO-01..06, NS-01..07, BC-01..06. Frontend vẫn là stub.

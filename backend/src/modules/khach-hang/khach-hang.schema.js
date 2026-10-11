@@ -1,5 +1,6 @@
 // khach-hang – schema kiểm tra đầu vào (zod). KH-01 tạo, KH-02 sửa, KH-03 tìm, KH-04 lịch sử mua; POS-06 dùng soDienThoai.
 const { z } = require('zod');
+const { truongKhoangNgay, khoangHopLe, thongBaoKhoang } = require('../../utils/loc-ngay');
 
 const so = ten => ({ error: `${ten} phải là số nguyên dương` });
 
@@ -35,7 +36,13 @@ const lichSuQuery = z.object({
   moi_trang: z.coerce.number(so('moi_trang')).int(so('moi_trang')).min(1, 'moi_trang tối thiểu là 1').max(100, 'moi_trang tối đa 100').optional(),
 }).refine(q => !q.tu_ngay || !q.den_ngay || q.tu_ngay <= q.den_ngay, { error: 'tu_ngay không được sau den_ngay' });
 
+// KH-05: top khách thân thiết (lọc theo ngày thanh toán, top mặc định 10, tối đa 100)
+const topKhachQuery = z.object({
+  ...truongKhoangNgay,
+  top: z.coerce.number(so('top')).int(so('top')).min(1, 'top tối thiểu là 1').max(100, 'top tối đa 100').optional(),
+}).refine(khoangHopLe, thongBaoKhoang);
+
 // POS-06
 const ganKhach = z.object({ so_dien_thoai: soDienThoai });
 
-module.exports = { ma, taoKhach, suaKhach, timKhachQuery, lichSuQuery, ganKhach };
+module.exports = { ma, taoKhach, suaKhach, timKhachQuery, lichSuQuery, topKhachQuery, ganKhach };

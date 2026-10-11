@@ -20,4 +20,13 @@ async function timTheoMaTaiKhoan(maTaiKhoan) {
   return rows[0] || null;
 }
 
-module.exports = { timTheoTenDangNhap, timTheoMaTaiKhoan };
+// AUTH-02: khóa dòng tài khoản (FOR UPDATE) và lấy băm hiện tại; hai lần đổi mật khẩu đồng thời chạy nối tiếp
+async function khoaTaiKhoan(maTaiKhoan, conn) {
+  const [rows] = await conn.query('SELECT ma_tai_khoan, mat_khau_hash FROM TaiKhoan WHERE ma_tai_khoan = ? FOR UPDATE', [maTaiKhoan]);
+  return rows[0] || null;
+}
+async function datMatKhau(maTaiKhoan, hash, conn) {
+  await conn.query('UPDATE TaiKhoan SET mat_khau_hash = ? WHERE ma_tai_khoan = ?', [hash, maTaiKhoan]);
+}
+
+module.exports = { timTheoTenDangNhap, timTheoMaTaiKhoan, khoaTaiKhoan, datMatKhau };

@@ -1,5 +1,6 @@
 // khach-hang – truy vấn CSDL (KhachHang; lịch sử mua đọc từ HoaDonDaThanhToan). Hàm nhận `conn` (mặc định pool).
 const pool = require('../../config/db');
+const { dieuKienNgay } = require('../../utils/loc-ngay');
 
 const COT = 'ma_khach_hang, ten_khach_hang, so_dien_thoai, diem_tich_luy';
 const escapeLike = s => s.replace(/[\\%_]/g, '\\$&');
@@ -60,4 +61,16 @@ async function lichSuMua(ma, { tu_ngay, den_ngay }, { limit, offset }, conn = po
   return { rows, so_don: Number(tong[0].so_don), tong_chi_tieu: Number(tong[0].tong_chi_tieu) };
 }
 
-module.exports = { khoa, timTheoMa, timTheoSdt, tao, sua, tim, congDiem, lichSuMua };
+// KH-05: xếp hạng theo tổng chi tiêu (SUM tong_tien) của hóa đơn đã thanh toán; chỉ khách có tài khoản khách hàng (bỏ khách vãng lai).
+async function topKhach(loc, top, conn = pool) {
+  const { dk, tham } = dieuKienNgay('p.thoi_gian_thanh_toan', loc);
+  const [rows] = await conn.query(
+    `SELECT k.ma_khach_hang, k.ten_khach_hang AS ten, k.so_dien_thoai, COUNT(*) AS so_don, SUM(p.tong_tien) AS tong_chi_tieu
+     FROM HoaDonDaThanhToan p JOIN KhachHang k ON k.ma_khach_hang = p.ma_khach_hang
+     ${dk.length ? `WHERE ${dk.join(' AND ')}` : ''}
+     GROUP BY k.ma_khach_hang, k.ten_khach_hang, k.so_dien_thoai
+     ORDER BY tong_chi_tieu DESC, so_don DESC, k.ma_khach_hang ASC LIMIT ?`, [...tham, top]);
+  return rows.map(r => ({ ...r, so_don: Number(r.so_don), tong_chi_tieu: Number(r.tong_chi_tieu) }));
+}
+
+module.exports = { topKhach, khoa, timTheoMa, timTheoSdt, tao, sua, tim, congDiem, lichSuMua };

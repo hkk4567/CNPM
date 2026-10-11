@@ -1,0 +1,12 @@
+{
+ "lan": 15,
+ "tai": 0,
+ "files": [
+  "tests/nhan-su.test.js",
+  "tests/auth-doi-mat-khau.test.js",
+  "tests/auth.test.js",
+  "tests/phan-quyen.test.js"
+ ],
+ "tong_loi": 0,
+ "loi": []
+}

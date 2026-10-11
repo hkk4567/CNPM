@@ -20,6 +20,7 @@ router.use('/khach-hang', require('./modules/khach-hang/khach-hang.routes'));
 router.use('/khuyen-mai', require('./modules/khuyen-mai/khuyen-mai.routes'));
 router.use('/hoa-don', require('./modules/hoa-don/hoa-don.routes'));
 router.use('/kho', require('./modules/kho/kho.routes'));
-// Sprint 4: nhan-su | Sprint 5: bao-cao
+router.use('/nhan-su', require('./modules/nhan-su/nhan-su.routes'));
+router.use('/bao-cao', require('./modules/bao-cao/bao-cao.routes'));
 
 module.exports = router;

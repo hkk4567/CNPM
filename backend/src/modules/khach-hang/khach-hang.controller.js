@@ -13,3 +13,6 @@ exports.lichSu = async (req, res) => {
   const { khach, rows, so_don, tong_chi_tieu } = await service.lichSuMua(req.du_lieu.params.ma, req.du_lieu.query, pt);
   res.json({ ok: true, data: rows, khach_hang: khach, tong_chi_tieu, tong_so_ban_ghi: so_don, trang: pt.trang, moi_trang: pt.moi_trang });
 };
+
+// KH-05
+exports.top = async (req, res) => ok(res, await service.topKhach(req.du_lieu.query));

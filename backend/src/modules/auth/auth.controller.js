@@ -10,4 +10,8 @@ async function thongTinCaNhan(req, res) {
   ok(res, req.nguoi_dung);
 }
 
-module.exports = { dangNhap, thongTinCaNhan };
+async function doiMatKhau(req, res) {
+  ok(res, await service.doiMatKhau(req.nguoi_dung, req.du_lieu.body));
+}
+
+module.exports = { dangNhap, thongTinCaNhan, doiMatKhau };

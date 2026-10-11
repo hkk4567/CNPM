@@ -11,6 +11,7 @@ const quanTri = choPhep(QUYEN.ADMIN, QUYEN.QUAN_LY);
 router.use(xacThuc);
 router.post('/', validate({ body: schema.taoKhach }), controller.tao);                                                  // KH-01 (A/Q/N)
 router.get('/', validate({ query: schema.timKhachQuery }), controller.tim);                                             // KH-03 (A/Q/N)
+router.get('/top', quanTri, validate({ query: schema.topKhachQuery }), controller.top);                                // KH-05 (A/Q)
 router.patch('/:ma', quanTri, validate({ params: schema.ma, body: schema.suaKhach }), controller.sua);                  // KH-02
 router.get('/:ma/lich-su', quanTri, validate({ params: schema.ma, query: schema.lichSuQuery }), controller.lichSu);     // KH-04
 

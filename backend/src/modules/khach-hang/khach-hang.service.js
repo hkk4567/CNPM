@@ -49,6 +49,8 @@ async function lichSuMua(ma, loc, phanTrang) {
   return { khach, ...kq };
 }
 
+const topKhach = ({ tu_ngay, den_ngay, top }) => repo.topKhach({ tu_ngay, den_ngay }, top ?? 10);
+
 // POS-08: khóa dòng khách TRƯỚC khi ghi snapshot/cộng điểm. Nếu không khóa trước, hai thanh toán của cùng một khách đồng thời
 // đều giữ khóa chia sẻ (do kiểm tra khóa ngoại của HoaDonDaThanhToan) rồi cùng xin khóa ghi để cộng điểm -> DEADLOCK (MySQL 1213, API trả 500).
 async function khoaKhach(ma, conn) {
@@ -62,4 +64,4 @@ async function congDiem(ma, diem, conn) {
   return kh.diem_tich_luy;
 }
 
-module.exports = { khoaKhach, layKhachHang, layKhachTheoSdt, taoKhach, suaKhach, timKhach, lichSuMua, congDiem };
+module.exports = { khoaKhach, layKhachHang, layKhachTheoSdt, taoKhach, suaKhach, timKhach, lichSuMua, topKhach, congDiem };

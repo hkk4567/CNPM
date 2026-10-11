@@ -1,9 +1,12 @@
-// auth – nghiệp vụ. AUTH-01: đăng nhập; xacThucToken dùng cho middleware xac-thuc.
+// auth – nghiệp vụ. AUTH-01: đăng nhập; AUTH-02: đổi mật khẩu; xacThucToken dùng cho middleware xac-thuc.
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { jwt: cauHinhJwt } = require('../../config/env');
 const repo = require('./auth.repository');
 const { loi } = require('../../utils/loi-nghiep-vu');
+const { withTransaction } = require('../../utils/transaction');
+
+const VONG_BAM = 10; // cùng chi phí bcrypt với dữ liệu mẫu (scripts/hash-password.js)
 
 // So sánh giả khi không có tài khoản: thời gian phản hồi không lộ tên đăng nhập nào tồn tại
 const HASH_GIA = bcrypt.hashSync('khong-ton-tai', 10);
@@ -41,4 +44,18 @@ async function xacThucToken(token) {
   return trichNguoiDung(tk);
 }
 
-module.exports = { dangNhap, xacThucToken };
+// AUTH-02: đổi mật khẩu của CHÍNH người đang đăng nhập (A/Q/N). Thứ tự: mật khẩu cũ đúng (401) -> mới khác cũ (400).
+// Băm ngoài transaction (bcrypt chậm, không giữ khóa dòng lâu). Các token đã cấp vẫn dùng được đến khi hết hạn (không có cột phiên bản mật khẩu).
+async function doiMatKhau(nguoiDung, { mat_khau_cu, mat_khau_moi }) {
+  const hashMoi = await bcrypt.hash(mat_khau_moi, VONG_BAM);
+  return withTransaction(async conn => {
+    const tk = await repo.khoaTaiKhoan(nguoiDung.ma_tai_khoan, conn);
+    if (!tk) throw loi.chuaDangNhap('TOKEN_KHONG_HOP_LE', 'Tài khoản không còn hiệu lực');
+    if (!(await bcrypt.compare(mat_khau_cu, tk.mat_khau_hash))) throw loi.chuaDangNhap('SAI_MAT_KHAU_CU', 'Mật khẩu cũ không đúng');
+    if (await bcrypt.compare(mat_khau_moi, tk.mat_khau_hash)) throw loi.yeuCauSai('MAT_KHAU_MOI_TRUNG_CU', 'Mật khẩu mới phải khác mật khẩu cũ');
+    await repo.datMatKhau(tk.ma_tai_khoan, hashMoi, conn);
+    return { da_doi: true };
+  });
+}
+
+module.exports = { dangNhap, doiMatKhau, xacThucToken, VONG_BAM };

@@ -67,7 +67,7 @@ const W7 = [800, 1600, 800, 2800, 3900, 2900, 1878];
 
 const auth = [
   ['AUTH-01', 'Đăng nhập', '`ten_dang_nhap`, `mat_khau`', 'Tìm `TaiKhoan`, so sánh bcrypt với `mat_khau_hash`', '`token`, `{ma_tai_khoan, ma_nhan_vien, ho_ten, quyen_truy_cap}`', '401 sai thông tin (không tiết lộ sai tên hay sai mật khẩu)'],
-  ['AUTH-02', 'Đổi mật khẩu (A/Q/N)', '`mat_khau_cu`, `mat_khau_moi`', 'Đúng mật khẩu cũ; mới ≥ 8 ký tự, khác cũ; băm bcrypt', '`{ "da_doi": true }`', '400 mật khẩu yếu\n401 sai mật khẩu cũ'],
+  ['AUTH-02', 'Đổi mật khẩu (A/Q/N, của chính mình)', '`mat_khau_cu`, `mat_khau_moi`', 'Thứ tự: mật khẩu cũ đúng (401 `SAI_MAT_KHAU_CU`) rồi mới khác cũ (400 `MAT_KHAU_MOI_TRUNG_CU`)\nMật khẩu mới: 8–72 byte, có ít nhất một chữ cái và một chữ số; băm bcrypt; khóa dòng tài khoản nên hai lần đổi đồng thời chạy nối tiếp\nToken đã cấp vẫn dùng được đến khi hết hạn (không có cột phiên bản mật khẩu)', '`{ "da_doi": true }`', '400 mật khẩu yếu\n401 sai mật khẩu cũ'],
 ];
 
 const sp = [
@@ -107,7 +107,7 @@ const kh = [
   ['KH-02', 'Sửa khách', 'A/Q', '`ma_khach_hang`, `ten_khach_hang?`, `so_dien_thoai?`', 'Không cho sửa `diem_tich_luy` trực tiếp (gửi trường này bị 400, không bị bỏ qua âm thầm); ít nhất một trường', 'Khách cập nhật', '400; 404; 409 `TRUNG_SDT`'],
   ['KH-03', 'Tìm khách', 'A/Q/N', '`tu_khoa` (tên hoặc SĐT)', '`LIKE` trên tên hoặc SĐT, không phân biệt dấu/hoa thường, giới hạn 20 kết quả; `tu_khoa` bắt buộc', 'Mảng `{ma_khach_hang, ten_khach_hang, so_dien_thoai, diem_tich_luy}`', '400 thiếu tu_khoa'],
   ['KH-04', 'Lịch sử mua', 'A/Q', '`ma_khach_hang`, `tu_ngay?`, `den_ngay?`', 'Hóa đơn `da_thanh_toan` của khách (đọc từ `HoaDonDaThanhToan`); `tu_ngay`/`den_ngay` lọc theo NGÀY THANH TOÁN, gồm cả hai đầu; phân trang (mặc định 20, tối đa 100)', 'Mảng hóa đơn (mới nhất trước) + `khach_hang`, `tong_chi_tieu` (tính trên toàn bộ kết quả lọc, không chỉ trang này)', '400 ngày sai; 404'],
-  ['KH-05', 'Top khách thân thiết', 'A/Q', '`tu_ngay`, `den_ngay`, `top` (mặc định 10)', '`GROUP BY ma_khach_hang`, `SUM(tong_tien)`', 'Mảng `{ma_khach_hang, ten, so_don, tong_chi_tieu}`', ''],
+  ['KH-05', 'Top khách thân thiết', 'A/Q', 'Query `tu_ngay?`, `den_ngay?` (gồm cả hai đầu, theo ngày thanh toán), `top?` (mặc định 10, tối đa 100) — `GET /api/khach-hang/top`', 'Chỉ hóa đơn đã thanh toán có khách hàng (bỏ khách vãng lai); `GROUP BY ma_khach_hang`, `SUM(tong_tien)`\nXếp theo tổng chi tiêu giảm dần, đồng hạng: nhiều đơn hơn trước, rồi mã khách nhỏ trước', 'Mảng `{ma_khach_hang, ten, so_dien_thoai, so_don, tong_chi_tieu}`', '400\n403'],
 ];
 
 const kho = [
@@ -120,22 +120,22 @@ const kho = [
 ];
 
 const ns = [
-  ['NS-01', 'Tạo nhân viên + tài khoản', 'A', '`ho_ten`, `chuc_vu`, `so_dien_thoai`, `ten_dang_nhap`, `mat_khau`, `quyen_truy_cap`', 'Một transaction; `ten_dang_nhap` UNIQUE; băm mật khẩu', '`{ma_nhan_vien, ma_tai_khoan}` (không trả mật khẩu)', '409 trùng tên đăng nhập'],
-  ['NS-02', 'Sửa nhân viên / đổi quyền', 'A (Q sửa thông tin)', '`ma_nhan_vien`, các trường cần đổi', 'Chỉ A đổi `quyen_truy_cap`; Q không sửa tài khoản admin', 'Nhân viên cập nhật', '403'],
-  ['NS-03', 'Xóa nhân viên', 'A', '`ma_nhan_vien`', 'Đã có hóa đơn/phiếu nhập thì không xóa mà đặt `trang_thai = \'nghi_viec\'`; nhân viên nghỉ việc bị chặn đăng nhập, không được chọn khi tạo order/xếp ca', '`{ "da_xoa": true }`', '409'],
-  ['NS-04', 'CRUD ca làm việc', 'A/Q', '`ten_ca`, `thoi_gian_bat_dau`, `thoi_gian_ket_thuc`', 'Xóa bị chặn nếu đã có `PhanCong`', 'Ca', '409'],
-  ['NS-05', 'Xếp lịch làm việc', 'A/Q', '`ma_nhan_vien`, `ma_ca`, `ngay_lam` (hoặc mảng nhiều ngày)', 'Khóa chính chặn trùng; ngày ≥ hôm nay', 'Danh sách phân công vừa tạo', '409 đã xếp'],
-  ['NS-06', 'Xóa phân công', 'A/Q', '`ma_nhan_vien`, `ma_ca`, `ngay_lam`', '', '`{ "da_xoa": true }`', '404'],
-  ['NS-07', 'Xem lịch tuần', 'A/Q (N chỉ của mình)', '`tu_ngay` (đầu tuần), `ma_nhan_vien?`', 'Join `PhanCong`, `CaLamViec`, `NhanVien`', 'Mảng `{ngay_lam, ten_ca, gio, ho_ten}`', ''],
+  ['NS-01', 'Tạo nhân viên + tài khoản', 'A', '`ho_ten`, `chuc_vu`, `so_dien_thoai?`, `ten_dang_nhap`, `mat_khau`, `quyen_truy_cap`', 'Một transaction (NhanVien + TaiKhoan), chạy dưới khóa tên `nhan_su`; `ten_dang_nhap` 3–50 ký tự (chữ không dấu, số, `. _ -`), UNIQUE không phân biệt hoa thường; mật khẩu cùng chính sách AUTH-02; băm bcrypt ngoài transaction\nTrường lạ (ví dụ `trang_thai`): 400', '`{ma_nhan_vien, ma_tai_khoan, ho_ten, chuc_vu, so_dien_thoai, ten_dang_nhap, quyen_truy_cap, trang_thai}` (không trả mật khẩu/băm)', '400\n409 `TRUNG_TEN_DANG_NHAP` (không để lại nhân viên mồ côi)'],
+  ['NS-02', 'Sửa nhân viên / đổi quyền', 'A (Q sửa thông tin)', '`ma_nhan_vien` (đường dẫn); `ho_ten?`, `chuc_vu?`, `so_dien_thoai?` (null = xóa), `quyen_truy_cap?`, `mat_khau?`', 'Chỉ A đổi `quyen_truy_cap` và đặt lại `mat_khau`; Q gửi các trường này hoặc sửa tài khoản admin: 403 (không ghi gì)\nKhông đổi `ten_dang_nhap`/`trang_thai` (400); nhân viên chưa có tài khoản mà đổi quyền/mật khẩu: 409 `NHAN_VIEN_KHONG_CO_TAI_KHOAN`\nKhông hạ quyền admin cuối cùng đang làm việc: 409 `ADMIN_CUOI_CUNG`; quyền mới có hiệu lực ngay với token đã cấp\nBổ sung: GET `/api/nhan-su` (A/Q; `tu_khoa`, `trang_thai`, `quyen_truy_cap`, phân trang) và GET `/api/nhan-su/:ma`', 'Nhân viên cập nhật (kèm tài khoản)', '400\n403\n404\n409'],
+  ['NS-03', 'Xóa nhân viên', 'A', '`ma_nhan_vien`', 'Chưa có `HoaDon`/`PhieuNhap`/`PhanCong` trước hôm nay: xóa hẳn (kèm tài khoản và phân công từ hôm nay): `{ "da_xoa": true }`\nĐã có lịch sử: KHÔNG xóa, đặt `trang_thai = nghi_viec`, gỡ phân công từ hôm nay: `{ "da_xoa": false, "trang_thai": "nghi_viec", "ly_do", "so_phan_cong_da_go" }` (gọi lại vẫn 200)\nNhân viên nghỉ việc bị chặn đăng nhập (403 `TAI_KHOAN_BI_KHOA`), token cũ mất hiệu lực ngay, không được xếp ca\nKhông tự xóa mình (409 `KHONG_XOA_CHINH_MINH`), không xóa admin cuối (409 `ADMIN_CUOI_CUNG`)', '`{ "da_xoa": true }` hoặc như trên', '404\n409'],
+  ['NS-04', 'CRUD ca làm việc', 'A/Q', '`ten_ca` (≤50), `thoi_gian_bat_dau`, `thoi_gian_ket_thuc` (`HH:mm` hoặc `HH:mm:ss`; trả `HH:mm:ss`); POST/GET/GET `:ma`/PATCH/DELETE tại `/api/nhan-su/ca-lam-viec`', 'Bắt đầu phải < kết thúc (không qua nửa đêm; kiểm tra trên dữ liệu đã gộp khi sửa); tên ca được trùng\nXóa bị chặn nếu đã có `PhanCong`: 409 `CA_DA_CO_PHAN_CONG` (khóa dòng ca + khóa ngoại là chốt cuối)\nDanh sách kèm `so_phan_cong`', 'Ca', '400\n404\n409'],
+  ['NS-05', 'Xếp lịch làm việc', 'A/Q', '`ma_nhan_vien`, `ma_ca`, `ngay_lam` (một ngày `YYYY-MM-DD` hoặc mảng 1–62 ngày không trùng)', 'Chỉ ngày ≥ hôm nay (theo ngày của DB): 400\nNhân viên nghỉ việc: 409 `NHAN_VIEN_NGHI_VIEC`\nTất cả hoặc không gì: có ngày đã xếp → 409 `DA_XEP_LICH` (`chi_tiet.ngay_da_xep`); khóa chính chặn cả khi hai yêu cầu chạy song song\nMột nhân viên được nhiều ca khác nhau trong cùng ngày', 'Danh sách phân công vừa tạo, sắp theo ngày', '400\n404\n409'],
+  ['NS-06', 'Xóa phân công', 'A/Q', 'Query `ma_nhan_vien`, `ma_ca`, `ngay_lam` (`DELETE /api/nhan-su/phan-cong`)', 'Xóa được cả ngày đã qua', '`{ "da_xoa": true }`', '400\n404'],
+  ['NS-07', 'Xem lịch tuần', 'A/Q xem tất cả hoặc lọc; N chỉ của mình', 'Query `tu_ngay?` (phải là thứ Hai; mặc định thứ Hai tuần hiện tại), `ma_nhan_vien?` (`GET /api/nhan-su/lich-tuan`)', 'Cửa sổ 7 ngày [`tu_ngay`, `tu_ngay`+6]; sắp theo ngày, giờ ca\nN xin lịch người khác: 403; để trống = lịch của mình', '`{ ok, data: [{ngay_lam, ma_ca, ten_ca, thoi_gian_bat_dau, thoi_gian_ket_thuc, ma_nhan_vien, ho_ten}], tu_ngay, den_ngay }`', '400\n401\n403'],
 ];
 
 const bc = [
-  ['BC-01', 'Doanh thu theo thời gian', '`tu_ngay`, `den_ngay`, `nhom` (`ngay`/`tuan`/`thang`)', '`HoaDon` `da_thanh_toan`, `GROUP BY DATE(thoi_gian_tao)`…', 'Mảng `{ky, so_don, doanh_thu}`'],
-  ['BC-02', 'Sản phẩm bán chạy', '`tu_ngay`, `den_ngay`, `top`', '`ChiTietHoaDon` + `SanPham`, `SUM(so_luong)`', 'Mảng `{ten_san_pham, so_luong, doanh_thu}`'],
-  ['BC-03', 'Doanh thu theo danh mục', '`tu_ngay`, `den_ngay`', '+ `DanhMuc`', 'Mảng `{ten_danh_muc, doanh_thu, ty_le}`'],
-  ['BC-04', 'Theo phương thức thanh toán', '`tu_ngay`, `den_ngay`', '`GROUP BY phuong_thuc_thanh_toan`', 'Mảng `{phuong_thuc, so_don, tong_tien}`'],
-  ['BC-05', 'Chi phí nhập vs doanh thu', '`tu_ngay`, `den_ngay`, `nhom`', '`PhieuNhap.tong_tien_nhap` đối chiếu `HoaDon.tong_tien`', 'Mảng `{ky, doanh_thu, chi_phi_nhap, chenh_lech}`'],
-  ['BC-06', 'Doanh thu theo nhân viên', '`tu_ngay`, `den_ngay`', '`GROUP BY ma_nhan_vien`', 'Mảng `{ho_ten, so_don, doanh_thu}`'],
+  ['BC-01', 'Doanh thu theo thời gian', 'Query `tu_ngay?`, `den_ngay?`, `nhom?` (`ngay` mặc định / `tuan` / `thang`) — `GET /api/bao-cao/doanh-thu`', '`HoaDonDaThanhToan` lọc theo ngày thanh toán (gồm cả hai đầu); kỳ: ngày `YYYY-MM-DD`, tuần = ngày thứ Hai đầu tuần, tháng `YYYY-MM`; chỉ kỳ có dữ liệu, sắp tăng dần', 'Mảng `{ky, so_don, doanh_thu}`'],
+  ['BC-02', 'Sản phẩm bán chạy', 'Query `tu_ngay?`, `den_ngay?`, `top?` (mặc định 10, tối đa 100) — `GET /api/bao-cao/san-pham-ban-chay`', '`ChiTietHoaDon` của hóa đơn đã thanh toán + `SanPham`; `doanh_thu` = `SUM(so_luong*don_gia - giam_gia)`; xếp theo số lượng giảm dần, đồng hạng theo doanh thu', 'Mảng `{ma_san_pham, ten_san_pham, so_luong, doanh_thu}`'],
+  ['BC-03', 'Doanh thu theo danh mục', 'Query `tu_ngay?`, `den_ngay?` — `GET /api/bao-cao/doanh-thu-theo-danh-muc`', 'Như BC-02, gom theo `DanhMuc`; `ty_le` = % trên tổng doanh thu các danh mục (2 chữ số thập phân)', 'Mảng `{ma_danh_muc, ten_danh_muc, doanh_thu, ty_le}`'],
+  ['BC-04', 'Theo phương thức thanh toán', 'Query `tu_ngay?`, `den_ngay?` — `GET /api/bao-cao/phuong-thuc-thanh-toan`', '`GROUP BY phuong_thuc_thanh_toan`; xếp theo tổng tiền giảm dần', 'Mảng `{phuong_thuc, so_don, tong_tien}`'],
+  ['BC-05', 'Chi phí nhập vs doanh thu', 'Query `tu_ngay?`, `den_ngay?`, `nhom?` — `GET /api/bao-cao/chi-phi-vs-doanh-thu`', 'Doanh thu từ `HoaDonDaThanhToan` (ngày thanh toán), chi phí từ `PhieuNhap.tong_tien_nhap` (ngày nhập); kỳ chỉ có một phía vẫn xuất hiện (phía kia = 0); `chenh_lech` = doanh_thu - chi_phi_nhap (có thể âm)', 'Mảng `{ky, doanh_thu, chi_phi_nhap, chenh_lech}`'],
+  ['BC-06', 'Doanh thu theo nhân viên', 'Query `tu_ngay?`, `den_ngay?` — `GET /api/bao-cao/doanh-thu-theo-nhan-vien`', '`GROUP BY ma_nhan_vien` (nhân viên nhập order) trên hóa đơn đã thanh toán, kể cả khách vãng lai; xếp theo doanh thu giảm dần', 'Mảng `{ma_nhan_vien, ho_ten, so_don, doanh_thu}`'],
 ];
 
 const perm = [
@@ -187,7 +187,21 @@ COMMIT;`;
 
 const api = [
   ['POST', '/api/auth/dang-nhap', 'AUTH-01 đăng nhập', 'chưa cần đăng nhập'],
+  ['POST', '/api/auth/doi-mat-khau', 'AUTH-02 đổi mật khẩu của chính mình', 'A/Q/N'],
   ['GET', '/api/auth/toi', 'Thông tin người đang đăng nhập', 'A/Q/N'],
+  ['POST, GET', '/api/nhan-su', 'NS-01 tạo nhân viên + tài khoản (A); danh sách nhân viên (A/Q)', 'A (tạo), A/Q (xem)'],
+  ['GET, PATCH, DELETE', '/api/nhan-su/:ma', 'Xem chi tiết (A/Q); NS-02 sửa / đổi quyền (A, Q sửa thông tin); NS-03 xóa hoặc cho nghỉ việc (A)', 'A/Q'],
+  ['POST, GET', '/api/nhan-su/ca-lam-viec', 'NS-04 tạo ca / danh sách ca', 'A/Q'],
+  ['GET, PATCH, DELETE', '/api/nhan-su/ca-lam-viec/:ma', 'NS-04 xem / sửa / xóa ca', 'A/Q'],
+  ['POST, DELETE', '/api/nhan-su/phan-cong', 'NS-05 xếp lịch; NS-06 gỡ phân công (query)', 'A/Q'],
+  ['GET', '/api/nhan-su/lich-tuan', 'NS-07 lịch tuần (N chỉ của mình)', 'A/Q/N'],
+  ['GET', '/api/khach-hang/top', 'KH-05 top khách thân thiết', 'A/Q'],
+  ['GET', '/api/bao-cao/doanh-thu', 'BC-01 doanh thu theo thời gian', 'A/Q'],
+  ['GET', '/api/bao-cao/san-pham-ban-chay', 'BC-02 sản phẩm bán chạy', 'A/Q'],
+  ['GET', '/api/bao-cao/doanh-thu-theo-danh-muc', 'BC-03 doanh thu theo danh mục', 'A/Q'],
+  ['GET', '/api/bao-cao/phuong-thuc-thanh-toan', 'BC-04 theo phương thức thanh toán', 'A/Q'],
+  ['GET', '/api/bao-cao/chi-phi-vs-doanh-thu', 'BC-05 chi phí nhập vs doanh thu', 'A/Q'],
+  ['GET', '/api/bao-cao/doanh-thu-theo-nhan-vien', 'BC-06 doanh thu theo nhân viên', 'A/Q'],
   ['GET', '/api/health', 'Kiểm tra máy chủ và CSDL', 'chưa cần đăng nhập'],
   ['GET', '/api/danh-muc', 'SP-01 xem danh mục', 'A/Q/N'],
   ['POST, PUT, DELETE', '/api/danh-muc, /api/danh-muc/:ma', 'SP-01 thêm, sửa, xóa danh mục', 'A/Q'],
