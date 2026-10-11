@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Tồn kho và nhập hàng</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid #1B6B63;outline-offset:2px}
+td,th{font-weight:400;text-align:left}
+a{color:#1B6B63}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 900px; background: #F1F4F3; font-family: 'Be Vietnam Pro', system-ui, sans-serif; color: #1A2B2A">
+
+<div style="flex: 1 1 264px; max-width: 264px">
+<dc-import name="Menu" role="quan_ly" active="ton-kho" hint-size="264px,900px"></dc-import>
+</div>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px 40px; display: flex; flex-direction: column; gap: 24px">
+
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 28px; line-height: 36px; font-weight: 700">Tồn kho</h1>
+<p style="margin: 0; font-size: 15px; color: #5B6B69">6 nguyên liệu, 1 sắp hết</p>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<a href="#" aria-current="page" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 999px; background: #1B6B63; color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none">Tồn kho</a>
+<a href="#" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 999px; background: #FFFFFF; border: 1px solid #DDE4E2; color: #2B3B39; font-size: 15px; font-weight: 500; text-decoration: none">Nguyên liệu</a>
+<a href="#" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 999px; background: #FFFFFF; border: 1px solid #DDE4E2; color: #2B3B39; font-size: 15px; font-weight: 500; text-decoration: none">Lịch sử nhập</a>
+<a href="#" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 999px; background: #FFFFFF; border: 1px solid #DDE4E2; color: #2B3B39; font-size: 15px; font-weight: 500; text-decoration: none">Nhà cung cấp</a>
+</div>
+
+<div role="status" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px 20px; background: #FFF1D6; border: 1px solid #F0D49A; border-radius: 12px">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8A5300" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5"/><path d="M12 18h.01"/></svg>
+<p style="margin: 0; flex: 1 1 280px; font-size: 15px; line-height: 24px; color: #5E3800"><strong>Trân châu còn 800 g</strong>, dưới mức tối thiểu 1.000 g. Trà sữa trân châu có thể hết nguyên liệu.</p>
+<button type="button" style="min-height: 44px; padding: 0 18px; font-family: inherit; font-size: 15px; font-weight: 600; color: #FFFFFF; background: #8A5300; border: 0; border-radius: 10px; cursor: pointer">Lập phiếu nhập</button>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px">
+
+<div style="flex: 1 1 560px; min-width: 0; background: #FFFFFF; border: 1px solid #DDE4E2; border-radius: 12px; overflow-x: auto">
+<table style="width: 100%; min-width: 600px; border-collapse: collapse; font-size: 15px">
+<thead>
+<tr style="color: #5B6B69; font-size: 14px">
+<th style="padding: 14px 16px; font-weight: 600; border-bottom: 1px solid #DDE4E2">Nguyên liệu</th>
+<th style="padding: 14px 16px; font-weight: 600; text-align: right; border-bottom: 1px solid #DDE4E2">Tồn</th>
+<th style="padding: 14px 16px; font-weight: 600; text-align: right; border-bottom: 1px solid #DDE4E2">Tối thiểu</th>
+<th style="padding: 14px 16px; font-weight: 600; border-bottom: 1px solid #DDE4E2">Mức tồn</th>
+<th style="padding: 14px 16px; font-weight: 600; border-bottom: 1px solid #DDE4E2">Tình trạng</th>
+</tr>
+</thead>
+<tbody>
+<tr style="height: 60px; background: #FFFAF0">
+<td style="padding: 0 16px; font-weight: 600; border-bottom: 1px solid #ECF0EF">Trân châu</td>
+<td style="padding: 0 16px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; border-bottom: 1px solid #ECF0EF">800 g</td>
+<td style="padding: 0 16px; text-align: right; font-variant-numeric: tabular-nums; color: #5B6B69; border-bottom: 1px solid #ECF0EF">1.000 g</td>
+<td style="padding: 0 16px; width: 180px; border-bottom: 1px solid #ECF0EF">
+<div style="position: relative; height: 8px; background: #E4EAE8; border-radius: 999px"><div style="width: 13%; height: 8px; background: #B7791F; border-radius: 999px"></div><div style="position: absolute; left: 16.7%; top: -4px; width: 2px; height: 16px; background: #1A2B2A"></div></div>
+</td>
+<td style="padding: 0 16px; border-bottom: 1px solid #ECF0EF"><span style="display: inline-block; padding: 2px 10px; border-radius: 999px; background: #FFF1D6; color: #8A5300; font-size: 14px; font-weight: 600">Sắp hết</span></td>
+</tr>
+<tr style="height: 60px">
+<td style="padding: 0 16px; font-weight: 600; border-bottom: 1px solid #ECF0EF">Trà đen</td>
+<td style="padding: 0 16px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; border-bottom: 1px solid #ECF0EF">2.000 g</td>
+<td style="padding: 0 16px; text-align: right; font-variant-numeric: tabular-nums; color: #5B6B69; border-bottom: 1px solid #ECF0EF">500 g</td>
+<td style="padding: 0 16px; border-bottom: 1px solid #ECF0EF">
+<div style="position: relative; height: 8px; background: #E4EAE8; border-radius: 999px"><div style="width: 67%; height: 8px; background: #1B6B63; border-radius: 999px"></div><div style="position: absolute; left: 16.7%; top: -4px; width: 2px; height: 16px; background: #1A2B2A"></div></div>
+</td>
+<td style="padding: 0 16px; border-bottom: 1px solid #ECF0EF"><span style="display: inline-block; padding: 2px 10px; border-radius: 999px; background: #E3F3E9; color: #1F6B3F; font-size: 14px; font-weight: 600">Đủ</span></td>
+</tr>
+<tr style="height: 60px">
+<td style="padding: 0 16px; font-weight: 600; border-bottom: 1px solid #ECF0EF">Sữa đặc</td>
+<td style="padding: 0 16px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; border-bottom: 1px solid #ECF0EF">4.000 g</td>
+<td style="padding: 0 16px; text-align: right; font-variant-numeric: tabular-nums; color: #5B6B69; border-bottom: 1px solid #ECF0EF">1.000 g</td>
+<td style="padding: 0 16px; border-bottom: 1px solid #ECF0EF">
+<div style="position: relative; height: 8px; background: #E4EAE8; border-radius: 999px"><div style="width: 67%; height: 8px; background: #1B6B63; border-radius: 999px"></div><div style="position: absolute; left: 16.7%; top: -4px; width: 2px; height: 16px; background: #1A2B2A"></div></div>
+</td>
+<td style="padding: 0 16px; border-bottom: 1px solid #ECF0EF"><span style="display: inline-block; padding: 2px 10px; border-radius: 999px; background: #E3F3E9; color: #1F6B3F; font-size: 14px; font-weight: 600">Đủ</span></td>
+</tr>
+<tr style="height: 60px">
+<td style="padding: 0 16px; font-weight: 600; border-bottom: 1px solid #ECF0EF">Cà phê bột</td>
+<td style="padding: 0 16px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; border-bottom: 1px solid #ECF0EF">5.000 g</td>
+<td style="padding: 0 16px; text-align: right; font-variant-numeric: tabular-nums; color: #5B6B69; border-bottom: 1px solid #ECF0EF">1.000 g</td>
+<td style="padding: 0 16px; border-bottom: 1px solid #ECF0EF">
+<div style="position: relative; height: 8px; background: #E4EAE8; border-radius: 999px"><div style="width: 83%; height: 8px; background: #1B6B63; border-radius: 999px"></div><div style="position: absolute; left: 16.7%; top: -4px; width: 2px; height: 16px; background: #1A2B2A"></div></div>
+</td>
+<td style="padding: 0 16px; border-bottom: 1px solid #ECF0EF"><span style="display: inline-block; padding: 2px 10px; border-radius: 999px; background: #E3F3E9; color: #1F6B3F; font-size: 14px; font-weight: 600">Đủ</span></td>
+</tr>
+<tr style="height: 60px">
+<td style="padding: 0 16px; font-weight: 600; border-bottom: 1px solid #ECF0EF">Đường</td>
+<td style="padding: 0 16px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; border-bottom: 1px solid #ECF0EF">6.000 g</td>
+<td style="padding: 0 16px; text-align: right; font-variant-numeric: tabular-nums; color: #5B6B69; border-bottom: 1px solid #ECF0EF">1.500 g</td>
+<td style="padding: 0 16px; border-bottom: 1px solid #ECF0EF">
+<div style="position: relative; height: 8px; background: #E4EAE8; border-radius: 999px"><div style="width: 67%; height: 8px; background: #1B6B63; border-radius: 999px"></div><div style="position: absolute; left: 16.7%; top: -4px; width: 2px; height: 16px; background: #1A2B2A"></div></div>
+</td>
+<td style="padding: 0 16px; border-bottom: 1px solid #ECF0EF"><span style="display: inline-block; padding: 2px 10px; border-radius: 999px; background: #E3F3E9; color: #1F6B3F; font-size: 14px; font-weight: 600">Đủ</span></td>
+</tr>
+<tr style="height: 60px">
+<td style="padding: 0 16px; font-weight: 600">Sữa tươi</td>
+<td style="padding: 0 16px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums">8.000 ml</td>
+<td style="padding: 0 16px; text-align: right; font-variant-numeric: tabular-nums; color: #5B6B69">2.000 ml</td>
+<td style="padding: 0 16px">
+<div style="position: relative; height: 8px; background: #E4EAE8; border-radius: 999px"><div style="width: 67%; height: 8px; background: #1B6B63; border-radius: 999px"></div><div style="position: absolute; left: 16.7%; top: -4px; width: 2px; height: 16px; background: #1A2B2A"></div></div>
+</td>
+<td style="padding: 0 16px"><span style="display: inline-block; padding: 2px 10px; border-radius: 999px; background: #E3F3E9; color: #1F6B3F; font-size: 14px; font-weight: 600">Đủ</span></td>
+</tr>
+</tbody>
+</table>
+<p style="margin: 0; padding: 12px 16px; font-size: 13px; color: #5B6B69; border-top: 1px solid #DDE4E2">Vạch đen trên thanh là mức tối thiểu. Nguyên liệu sắp hết luôn xếp đầu bảng.</p>
+</div>
+
+<section aria-label="Lập phiếu nhập" style="flex: 1 1 340px; max-width: 420px; box-sizing: border-box; background: #FFFFFF; border: 1px solid #DDE4E2; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+<h2 style="margin: 0; font-size: 20px; line-height: 28px; font-weight: 700">Lập phiếu nhập</h2>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<label for="ncc" style="font-size: 14px; font-weight: 600">Nhà cung cấp</label>
+<select id="ncc" style="height: 44px; padding: 0 10px; font-family: inherit; font-size: 15px; background: #FFFFFF; border: 1px solid #B9C6C3; border-radius: 10px"><option>Đại lý Sữa và Nguyên liệu Sài Gòn</option><option>Công ty Cà phê Tây Nguyên</option></select>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<label for="ngay" style="font-size: 14px; font-weight: 600">Ngày nhập</label>
+<input id="ngay" type="text" value="11/10/2026" style="height: 44px; box-sizing: border-box; padding: 0 12px; font-family: inherit; font-size: 15px; border: 1px solid #B9C6C3; border-radius: 10px">
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 14px; font-weight: 600">Nguyên liệu nhập</div>
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; background: #F1F4F3; border-radius: 10px">
+<div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 600"><span>Trân châu</span><span style="font-variant-numeric: tabular-nums">450.000đ</span></div>
+<div style="font-size: 14px; color: #5B6B69; font-variant-numeric: tabular-nums">5.000 g x 90đ mỗi g</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; background: #F1F4F3; border-radius: 10px">
+<div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 600"><span>Cà phê bột</span><span style="font-variant-numeric: tabular-nums">1.800.000đ</span></div>
+<div style="font-size: 14px; color: #5B6B69; font-variant-numeric: tabular-nums">10.000 g x 180đ mỗi g</div>
+</div>
+<button type="button" style="min-height: 44px; font-family: inherit; font-size: 15px; font-weight: 600; color: #1B6B63; background: #FFFFFF; border: 1px dashed #1B6B63; border-radius: 10px; cursor: pointer">Thêm nguyên liệu</button>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 16px; border-top: 1px solid #DDE4E2">
+<span style="font-size: 15px; color: #5B6B69">Tổng tiền nhập</span>
+<span style="font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums">2.250.000đ</span>
+</div>
+<button type="button" style="min-height: 48px; font-family: inherit; font-size: 16px; font-weight: 600; color: #FFFFFF; background: #1B6B63; border: 0; border-radius: 10px; cursor: pointer">Lưu phiếu nhập</button>
+<p style="margin: 0; font-size: 14px; line-height: 22px; color: #5B6B69">Khi lưu, tồn kho của các nguyên liệu trên được cộng thêm ngay.</p>
+</section>
+
+</div>
+
+<p style="margin: 0; font-size: 13px; color: #5B6B69">Số liệu minh họa từ dữ liệu mẫu của dự án.</p>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

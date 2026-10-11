@@ -1,0 +1,226 @@
+[
+  {
+    "id": "POS-01", "ten": "Xem menu", "quyen": "A/Q/N",
+    "api": "GET /api/san-pham/menu",
+    "mo_ta": "Nhân viên xem các món đang bán kèm giá sau khuyến mãi và số ly còn có thể pha.",
+    "dl_vao": ["ma_danh_muc?", "tu_khoa?"],
+    "dl_doc": ["SanPham (con_ban), DanhMuc", "KhuyenMai, KhuyenMaiSanPham (đang hiệu lực)", "CongThuc, NguyenLieu.so_luong_ton"],
+    "dl_ra": ["Mảng món: gia_ban, gia_sau_giam, tong_giam_moi_ly", "khuyen_mai[], so_ly_toi_da, du_nguyen_lieu"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "Chỉ lấy sản phẩm có trang_thai = con_ban.",
+      "Với mỗi khuyến mãi đang hiệu lực của sản phẩm (NOW() nằm giữa ngay_bat_dau và ngay_ket_thuc), tính theo mã tăng dần: muc = FLOOR(gia_ban × gia_tri_giam / 100) nếu phan_tram, ngược lại muc = gia_tri_giam; luôn tính trên giá gốc và không vượt phần giá còn lại.",
+      "gia_sau_giam = gia_ban − Σ muc; tong_giam_moi_ly = Σ muc.",
+      "so_ly_toi_da = MIN(FLOOR(so_luong_ton / dinh_luong)) trên các nguyên liệu của công thức; null nếu chưa có công thức (không giới hạn).",
+      "du_nguyen_lieu = false khi so_ly_toi_da = 0."
+    ],
+    "xu_ly_ngan": "gia_sau_giam = gia_ban − Σ FLOOR(% × gia_ban | số tiền)   so_ly_toi_da = MIN(FLOOR(tồn / định lượng))",
+    "tien": "Đã đăng nhập.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400 tham số sai"
+  },
+  {
+    "id": "POS-02", "ten": "Tạo order", "quyen": "A/Q/N",
+    "api": "POST /api/hoa-don",
+    "mo_ta": "Nhân viên nhập order mới cho khách; hệ thống tự áp khuyến mãi và trừ nguyên liệu ngay.",
+    "dl_vao": ["ma_khach_hang? (khách vãng lai thì bỏ trống)", "items[]: ma_san_pham, so_luong, ghi_chu?", "ma_nhan_vien (lấy từ token)"],
+    "dl_doc": ["SanPham, KhachHang", "KhuyenMai, KhuyenMaiSanPham", "CongThuc, NguyenLieu.so_luong_ton", "HoaDon: so_thu_tu lớn nhất trong ngày"],
+    "dl_ra": ["Hóa đơn + chi_tiet[] (giam_gia, khuyen_mai[])", "tong_tien_hang, tong_giam_gia, tong_tien_tam_tinh", "canh_bao_kho[] (HTTP 201)"],
+    "dl_luu": ["HoaDon, ChiTietHoaDon: INSERT", "ChiTietHoaDonKhuyenMai: INSERT", "NguyenLieu.so_luong_ton: UPDATE (trừ)"],
+    "xu_ly": [
+      "items có 1–50 dòng; so_luong nguyên 1–99; ghi_chu ≤ 255 ký tự; sản phẩm phải tồn tại và con_ban (400 SAN_PHAM_NGUNG_BAN). Cùng sản phẩm nhiều dòng (ghi chú khác) vẫn được.",
+      "so_thu_tu = MAX(so_thu_tu trong ngày) + 1, cấp trong transaction có khóa tên nên không trùng khi nhiều order tạo cùng lúc.",
+      "Chụp don_gia = gia_ban; tự áp khuyến mãi theo công thức POS-01, giam_gia của dòng = so_luong × Σ muc; ghi từng mã vào ChiTietHoaDonKhuyenMai (muc_giam_moi_ly).",
+      "Nguyên liệu cần = Σ (so_luong × dinh_luong) gộp mọi dòng. Nếu so_luong_ton < cần dùng thì 409 KHONG_DU_NGUYEN_LIEU và không tạo gì; đủ thì trừ kho ngay trong cùng transaction.",
+      "canh_bao_kho liệt kê nguyên liệu vừa trừ mà so_luong_ton ≤ muc_ton_toi_thieu."
+    ],
+    "xu_ly_ngan": "giam_gia = so_luong × Σ mức giảm   cần dùng = Σ so_luong × định lượng ≤ tồn ?   so_thu_tu = MAX + 1",
+    "tien": "Đã đăng nhập; các sản phẩm đang bán; tồn kho đủ.",
+    "hau": "Hóa đơn ở trạng thái dang_pha_che; nguyên liệu của các ly đã gọi bị trừ.",
+    "phu": "Trừ kho ngay lúc gọi món (không đợi thanh toán).",
+    "loi": "400 SAN_PHAM_NGUNG_BAN, DU_LIEU_SAI; 404 sản phẩm/khách; 409 KHONG_DU_NGUYEN_LIEU"
+  },
+  {
+    "id": "POS-03", "ten": "Thêm món vào order", "quyen": "A/Q/N",
+    "api": "POST /api/hoa-don/:ma/dong",
+    "mo_ta": "Khách gọi thêm món khi order còn mở.",
+    "dl_vao": ["ma_hoa_don (đường dẫn)", "ma_san_pham, so_luong, ghi_chu?"],
+    "dl_doc": ["HoaDon (khóa dòng, kiểm tra trạng thái)", "SanPham, KhuyenMai, KhuyenMaiSanPham", "CongThuc, NguyenLieu.so_luong_ton"],
+    "dl_ra": ["Hóa đơn cập nhật (HTTP 201)", "canh_bao_kho[]"],
+    "dl_luu": ["ChiTietHoaDon, ChiTietHoaDonKhuyenMai: INSERT", "NguyenLieu.so_luong_ton: UPDATE (trừ)", "HoaDon.trang_thai: UPDATE (nếu quay lại)"],
+    "xu_ly": [
+      "Khóa dòng HoaDon (FOR UPDATE) rồi kiểm tra chưa da_thanh_toan hoặc huy (409 HOA_DON_DA_DONG).",
+      "Sản phẩm phải tồn tại và con_ban; luôn thêm dòng mới (cùng sản phẩm, ghi chú khác là hai dòng).",
+      "Chụp giá và khuyến mãi đang hiệu lực tại thời điểm thêm; các dòng cũ giữ nguyên mức giảm đã chụp.",
+      "Trừ kho phần ly mới thêm; thiếu nguyên liệu thì 409 và không đổi gì.",
+      "Nếu order đang da_phuc_vu thì quay lại dang_pha_che (vì có món mới cần làm)."
+    ],
+    "xu_ly_ngan": "hóa đơn còn mở ?   cần dùng = so_luong × định lượng ≤ tồn ?",
+    "tien": "Hóa đơn tồn tại, chưa thanh toán và chưa hủy.",
+    "hau": "Order có thêm một dòng mới; kho bị trừ tương ứng.",
+    "phu": "Có thể đổi trạng thái order từ da_phuc_vu về dang_pha_che.",
+    "loi": "400 SAN_PHAM_NGUNG_BAN; 404; 409 HOA_DON_DA_DONG, KHONG_DU_NGUYEN_LIEU"
+  },
+  {
+    "id": "POS-04", "ten": "Sửa dòng món", "quyen": "A/Q/N",
+    "api": "PATCH /api/hoa-don/:ma/dong/:ma_chi_tiet",
+    "mo_ta": "Đổi số lượng hoặc ghi chú của một dòng trong order còn mở.",
+    "dl_vao": ["ma_hoa_don, ma_chi_tiet (đường dẫn)", "so_luong?, ghi_chu?, da_lam? (chỉ khi giảm)"],
+    "dl_doc": ["HoaDon (khóa dòng), ChiTietHoaDon", "ChiTietHoaDonKhuyenMai", "CongThuc, NguyenLieu.so_luong_ton"],
+    "dl_ra": ["Hóa đơn cập nhật", "canh_bao_kho[] (khi tăng số lượng)"],
+    "dl_luu": ["ChiTietHoaDon: UPDATE", "NguyenLieu.so_luong_ton: UPDATE (trừ hoặc trả)", "HoaDon.trang_thai: UPDATE (nếu quay lại)"],
+    "xu_ly": [
+      "Như POS-03: khóa HoaDon, hóa đơn còn mở; dòng phải thuộc đúng hóa đơn (404); phải gửi ít nhất một trường.",
+      "Đổi so_luong thì giam_gia mới = so_luong mới × Σ muc_giam_moi_ly đã chụp (không tính lại theo khuyến mãi hiện tại).",
+      "Tăng số lượng: trừ kho phần chênh, thiếu thì 409; order da_phuc_vu quay lại dang_pha_che.",
+      "Giảm số lượng: trả kho (số ly bị bỏ − da_lam) × dinh_luong. da_lam từ 0 đến số ly bị bỏ (mặc định 0). Order da_phuc_vu coi như làm xong hết nên không trả.",
+      "Đổi ghi chú (null hoặc rỗng = xóa ghi chú) không đụng kho."
+    ],
+    "xu_ly_ngan": "giam_gia = so_luong mới × Σ mức giảm đã chụp   trả kho = (ly bỏ − da_lam) × định lượng",
+    "tien": "Hóa đơn còn mở; dòng thuộc hóa đơn.",
+    "hau": "Dòng món có số lượng/ghi chú mới; kho khớp với số ly còn lại.",
+    "phu": "Trừ hoặc trả nguyên liệu theo phần chênh.",
+    "loi": "400 (da_lam sai); 404; 409 HOA_DON_DA_DONG, KHONG_DU_NGUYEN_LIEU"
+  },
+  {
+    "id": "POS-05", "ten": "Xóa dòng món", "quyen": "A/Q/N",
+    "api": "DELETE /api/hoa-don/:ma/dong/:ma_chi_tiet?da_lam=",
+    "mo_ta": "Bỏ hẳn một dòng món ra khỏi order còn mở.",
+    "dl_vao": ["ma_hoa_don, ma_chi_tiet (đường dẫn)", "da_lam? (query: số ly đã làm xong)"],
+    "dl_doc": ["HoaDon (khóa dòng), ChiTietHoaDon", "CongThuc, NguyenLieu"],
+    "dl_ra": ["Hóa đơn cập nhật"],
+    "dl_luu": ["ChiTietHoaDon: DELETE (kèm ChiTietHoaDonKhuyenMai)", "NguyenLieu.so_luong_ton: UPDATE (trả)"],
+    "xu_ly": [
+      "Như POS-03: khóa HoaDon, hóa đơn còn mở, dòng thuộc đúng hóa đơn.",
+      "Không xóa dòng cuối cùng (409 KHONG_XOA_DONG_CUOI), phải dùng hủy order (POS-09).",
+      "da_lam từ 0 đến so_luong của dòng (mặc định 0): ly chưa làm được trả kho = (so_luong − da_lam) × dinh_luong; ly đã làm vẫn bị trừ.",
+      "Order da_phuc_vu coi như làm xong hết: không trả kho."
+    ],
+    "xu_ly_ngan": "còn ≥ 2 dòng ?   trả kho = (so_luong − da_lam) × định lượng",
+    "tien": "Hóa đơn còn mở và có từ 2 dòng trở lên.",
+    "hau": "Dòng bị xóa; nguyên liệu của các ly chưa làm đã được hoàn lại.",
+    "phu": "Hoàn nguyên liệu vào kho.",
+    "loi": "400; 404; 409 HOA_DON_DA_DONG, KHONG_XOA_DONG_CUOI"
+  },
+  {
+    "id": "POS-06", "ten": "Gắn khách thành viên", "quyen": "A/Q/N",
+    "api": "POST /api/hoa-don/:ma/khach-hang",
+    "mo_ta": "Gắn khách thành viên vào order bằng số điện thoại để tích điểm.",
+    "dl_vao": ["ma_hoa_don (đường dẫn)", "so_dien_thoai"],
+    "dl_doc": ["KhachHang (tìm theo so_dien_thoai)", "HoaDon: trạng thái"],
+    "dl_ra": ["ma_khach_hang, ten_khach_hang, diem_tich_luy"],
+    "dl_luu": ["HoaDon.ma_khach_hang: UPDATE"],
+    "xu_ly": [
+      "so_dien_thoai gồm đúng 10 chữ số bắt đầu bằng 0 (400 nếu sai định dạng).",
+      "Không có khách với SĐT đó thì 404; giao diện gợi ý tạo khách mới (KH-01).",
+      "Order phải còn mở (409 nếu đã thanh toán hoặc hủy); được đổi sang khách khác khi còn mở.",
+      "Điểm chỉ được cộng lúc thanh toán (POS-08) cho khách đang gắn trên hóa đơn."
+    ],
+    "xu_ly_ngan": "SĐT có 10 chữ số, bắt đầu bằng 0 ?   khách tồn tại ?   hóa đơn còn mở ?",
+    "tien": "Hóa đơn còn mở; khách đã được tạo (KH-01).",
+    "hau": "Hóa đơn gắn với khách thành viên.",
+    "phu": "Không.",
+    "loi": "400 SĐT sai; 404 chưa có khách; 409 HOA_DON_DA_DONG"
+  },
+  {
+    "id": "POS-07", "ten": "Đổi trạng thái order", "quyen": "A/Q/N",
+    "api": "PATCH /api/hoa-don/:ma/trang-thai",
+    "mo_ta": "Chuyển order từ đang pha chế sang đã phục vụ, hoặc hủy.",
+    "dl_vao": ["ma_hoa_don (đường dẫn)", "trang_thai_moi", "da_lam?[] (chỉ khi hủy)"],
+    "dl_doc": ["HoaDon (khóa dòng, trạng thái hiện tại)", "ChiTietHoaDon, CongThuc, NguyenLieu (khi hủy)"],
+    "dl_ra": ["Hóa đơn cập nhật"],
+    "dl_luu": ["HoaDon.trang_thai: UPDATE", "NguyenLieu.so_luong_ton: UPDATE (khi hủy)"],
+    "xu_ly": [
+      "Chỉ cho phép: dang_pha_che → da_phuc_vu; dang_pha_che hoặc da_phuc_vu → huy. Không quay ngược.",
+      "Chuyển sang da_thanh_toan bị từ chối (409 CHUYEN_TRANG_THAI_KHONG_HOP_LE), phải dùng POS-08; hóa đơn đã đóng không đổi được (409 HOA_DON_DA_DONG).",
+      "Hủy áp dụng cùng luật kho với POS-09; da_lam với trạng thái đích khác huy thì 400."
+    ],
+    "xu_ly_ngan": "trạng thái hiện tại → trạng thái mới có hợp lệ ?   (đích huy: luật kho của POS-09)",
+    "tien": "Hóa đơn tồn tại và chưa đóng.",
+    "hau": "Hóa đơn ở trạng thái mới.",
+    "phu": "Khi hủy: hoàn nguyên liệu của ly chưa làm.",
+    "loi": "400; 404; 409 CHUYEN_TRANG_THAI_KHONG_HOP_LE, HOA_DON_DA_DONG"
+  },
+  {
+    "id": "POS-08", "ten": "Thanh toán", "quyen": "A/Q/N",
+    "api": "POST /api/hoa-don/:ma/thanh-toan",
+    "mo_ta": "Chốt tiền hóa đơn, ghi nhận phương thức thanh toán và cộng điểm cho khách thành viên.",
+    "dl_vao": ["ma_hoa_don (đường dẫn)", "phuong_thuc_thanh_toan (tien_mat | chuyen_khoan | vi)"],
+    "dl_doc": ["HoaDon (khóa dòng, trạng thái)", "ChiTietHoaDon: so_luong, don_gia, giam_gia", "KhachHang: diem_tich_luy"],
+    "dl_ra": ["hoa_don (đã chốt tong_tien)", "diem_cong, diem_hien_tai (null nếu khách vãng lai)"],
+    "dl_luu": ["HoaDon: UPDATE trang_thai, tong_tien, phuong_thuc", "HoaDonDaThanhToan: INSERT (biên lai bất biến)", "KhachHang.diem_tich_luy: UPDATE"],
+    "xu_ly": [
+      "Chạy trong một transaction, khóa HoaDon rồi KhachHang; hóa đơn phải còn mở (409 HOA_DON_DA_DONG).",
+      "tong_tien = Σ (so_luong × don_gia − giam_gia) của các dòng.",
+      "UPDATE có điều kiện trang_thai <> da_thanh_toan nên bấm thanh toán hai lần chỉ có hiệu lực một lần.",
+      "Ghi một dòng vào HoaDonDaThanhToan (tong_tien_hang, tong_giam_gia, tong_tien, diem_cong); bảng này chỉ thêm, trigger chặn sửa và xóa.",
+      "Nếu có khách: diem_cong = FLOOR(tong_tien / 10000), diem_tich_luy += diem_cong.",
+      "Không đụng kho vì nguyên liệu đã trừ từ lúc gọi món."
+    ],
+    "xu_ly_ngan": "tong_tien = Σ (SL × đơn giá − giảm)   diem_cong = FLOOR(tong_tien / 10.000)   hóa đơn còn mở ?",
+    "tien": "Hóa đơn còn mở (chưa thanh toán, chưa hủy).",
+    "hau": "Hóa đơn da_thanh_toan, có biên lai bất biến; điểm khách đã cộng.",
+    "phu": "Tích điểm cho khách thành viên.",
+    "loi": "400 phương thức sai; 404; 409 HOA_DON_DA_DONG"
+  },
+  {
+    "id": "POS-09", "ten": "Hủy order", "quyen": "A/Q/N",
+    "api": "POST /api/hoa-don/:ma/huy",
+    "mo_ta": "Hủy một order chưa thanh toán; nhân viên chọn ly nào đã pha xong để không hoàn nguyên liệu.",
+    "dl_vao": ["ma_hoa_don (đường dẫn)", "da_lam?: [{ma_chi_tiet, so_luong}]"],
+    "dl_doc": ["HoaDon (khóa dòng), ChiTietHoaDon", "CongThuc, NguyenLieu"],
+    "dl_ra": ["Hóa đơn với trang_thai = huy"],
+    "dl_luu": ["HoaDon.trang_thai: UPDATE = huy", "NguyenLieu.so_luong_ton: UPDATE (trả)"],
+    "xu_ly": [
+      "Chỉ hủy khi chưa da_thanh_toan (409 HOA_DON_DA_DONG); dùng chung logic với POS-07.",
+      "Ly chưa làm được hoàn kho = (so_luong − da_lam) × dinh_luong; ly đã làm (da_lam) vẫn bị trừ. Dòng không nêu trong da_lam coi như chưa làm.",
+      "da_lam: ma_chi_tiet phải thuộc hóa đơn, không lặp, so_luong không vượt số ly của dòng (400 nếu sai, không đổi gì).",
+      "Order da_phuc_vu coi như làm xong hết: không hoàn kho. Dữ liệu hóa đơn được giữ lại (không xóa)."
+    ],
+    "xu_ly_ngan": "hoàn kho = Σ (so_luong − da_lam) × định lượng   (da_phuc_vu: không hoàn)",
+    "tien": "Hóa đơn chưa thanh toán và chưa hủy.",
+    "hau": "Hóa đơn bị hủy; nguyên liệu ly chưa làm đã hoàn về kho.",
+    "phu": "Hoàn nguyên liệu vào kho.",
+    "loi": "400 da_lam sai; 404; 409 HOA_DON_DA_DONG"
+  },
+  {
+    "id": "POS-10", "ten": "Danh sách order", "quyen": "A/Q/N",
+    "api": "GET /api/hoa-don",
+    "mo_ta": "Xem các order theo ngày để theo dõi pha chế và thanh toán.",
+    "dl_vao": ["ngay? (YYYY-MM-DD, mặc định hôm nay)", "trang_thai?, ma_nhan_vien?", "trang?, moi_trang?"],
+    "dl_doc": ["HoaDon, ChiTietHoaDon", "KhachHang: ten_khach_hang", "NhanVien: ho_ten"],
+    "dl_ra": ["Mảng order: so_thu_tu, trang_thai, so_mon, tong_tien...", "tong_so_ban_ghi, trang, moi_trang"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "ngay phải đúng dạng YYYY-MM-DD hợp lệ (400 nếu sai). Nhân viên (N) chỉ xem hôm nay, xin ngày khác thì 403.",
+      "Sắp theo so_thu_tu tăng dần; so_mon = Σ so_luong.",
+      "tong_tien = số đã chốt nếu da_thanh_toan, ngược lại tạm tính = Σ (so_luong × don_gia − giam_gia).",
+      "Phân trang: mặc định 50 dòng, tối đa 200."
+    ],
+    "xu_ly_ngan": "ngày hợp lệ ?   N chỉ xem hôm nay ?   tạm tính = Σ (SL × đơn giá − giảm)",
+    "tien": "Đã đăng nhập.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400 tham số sai; 403 N xem ngày khác"
+  },
+  {
+    "id": "POS-11", "ten": "Xem và in hóa đơn", "quyen": "A/Q/N",
+    "api": "GET /api/hoa-don/:ma",
+    "mo_ta": "Xem hóa đơn đầy đủ của một order để in bill đưa khách.",
+    "tb_ra": "Màn hình, máy in hóa đơn",
+    "dl_vao": ["ma_hoa_don (đường dẫn)"],
+    "dl_doc": ["HoaDon, ChiTietHoaDon, SanPham", "KhachHang, NhanVien", "ChiTietHoaDonKhuyenMai, KhuyenMai"],
+    "dl_ra": ["Thông tin chung + chi_tiet[] (kèm khuyen_mai[])", "tong_tien_hang, tong_giam_gia, tong_tien_tam_tinh", "tong_tien (số đã chốt, null nếu chưa thanh toán)"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "Nhân viên (N) chỉ xem hóa đơn tạo hôm nay (403), cùng quy tắc với POS-10; A/Q xem mọi ngày.",
+      "tong_tien_tam_tinh luôn tính từ các dòng; tong_tien là số đã chốt khi thanh toán, null khi chưa thanh toán."
+    ],
+    "xu_ly_ngan": "N chỉ xem hóa đơn hôm nay ?   tạm tính = Σ (SL × đơn giá − giảm)",
+    "tien": "Hóa đơn tồn tại.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400; 403; 404"
+  }
+]

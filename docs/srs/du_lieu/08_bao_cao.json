@@ -1,0 +1,113 @@
+[
+  {
+    "id": "BC-01", "ten": "Doanh thu theo thời gian", "quyen": "A/Q",
+    "api": "GET /api/bao-cao/doanh-thu",
+    "mo_ta": "Thống kê số đơn và doanh thu theo ngày, tuần hoặc tháng.",
+    "dl_vao": ["tu_ngay?, den_ngay?", "nhom? (ngay | tuan | thang, mặc định ngay)"],
+    "dl_doc": ["HoaDonDaThanhToan: thoi_gian_thanh_toan, tong_tien"],
+    "dl_ra": ["Mảng {ky, so_don, doanh_thu}"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "Lọc theo ngày thanh toán, gồm cả hai đầu.",
+      "Kỳ: ngày (YYYY-MM-DD), tuần (ngày thứ Hai đầu tuần), tháng (YYYY-MM); chỉ hiện kỳ có dữ liệu, sắp tăng dần.",
+      "so_don = COUNT hóa đơn, doanh_thu = SUM(tong_tien) của mỗi kỳ."
+    ],
+    "xu_ly_ngan": "GROUP BY kỳ (ngày/tuần/tháng): COUNT(đơn), SUM(tong_tien)",
+    "tien": "Đã đăng nhập với quyền A hoặc Q.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400"
+  },
+  {
+    "id": "BC-02", "ten": "Sản phẩm bán chạy", "quyen": "A/Q",
+    "api": "GET /api/bao-cao/san-pham-ban-chay",
+    "mo_ta": "Xếp hạng sản phẩm theo số lượng bán.",
+    "dl_vao": ["tu_ngay?, den_ngay?", "top? (mặc định 10, tối đa 100)"],
+    "dl_doc": ["ChiTietHoaDon, HoaDonDaThanhToan", "SanPham: ten_san_pham"],
+    "dl_ra": ["Mảng {ma_san_pham, ten_san_pham, so_luong, doanh_thu}"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "Chỉ tính hóa đơn đã thanh toán, lọc theo ngày thanh toán.",
+      "doanh_thu = SUM(so_luong × don_gia − giam_gia); so_luong = SUM(so_luong).",
+      "Xếp theo số lượng giảm dần, đồng hạng thì theo doanh thu; lấy top sản phẩm đầu."
+    ],
+    "xu_ly_ngan": "GROUP BY sản phẩm: SUM(SL), SUM(SL × đơn giá − giảm) → sắp giảm dần → lấy top N",
+    "tien": "Đã đăng nhập với quyền A hoặc Q.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400"
+  },
+  {
+    "id": "BC-03", "ten": "Doanh thu theo danh mục", "quyen": "A/Q",
+    "api": "GET /api/bao-cao/doanh-thu-theo-danh-muc",
+    "mo_ta": "Thống kê doanh thu và tỷ trọng của từng danh mục.",
+    "dl_vao": ["tu_ngay?, den_ngay?"],
+    "dl_doc": ["ChiTietHoaDon, HoaDonDaThanhToan", "SanPham, DanhMuc"],
+    "dl_ra": ["Mảng {ma_danh_muc, ten_danh_muc, doanh_thu, ty_le}"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "Tính doanh thu như BC-02 rồi gom theo danh mục của sản phẩm.",
+      "ty_le = doanh thu danh mục / tổng doanh thu các danh mục × 100 (làm tròn 2 chữ số thập phân)."
+    ],
+    "xu_ly_ngan": "ty_le = doanh_thu danh mục / Σ doanh_thu × 100",
+    "tien": "Đã đăng nhập với quyền A hoặc Q.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400"
+  },
+  {
+    "id": "BC-04", "ten": "Thống kê theo phương thức thanh toán", "quyen": "A/Q",
+    "api": "GET /api/bao-cao/phuong-thuc-thanh-toan",
+    "mo_ta": "Thống kê số đơn và số tiền theo tiền mặt, chuyển khoản, ví.",
+    "dl_vao": ["tu_ngay?, den_ngay?"],
+    "dl_doc": ["HoaDonDaThanhToan: phuong_thuc_thanh_toan, tong_tien"],
+    "dl_ra": ["Mảng {phuong_thuc, so_don, tong_tien}"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "GROUP BY phuong_thuc_thanh_toan với so_don = COUNT, tong_tien = SUM(tong_tien).",
+      "Xếp theo tổng tiền giảm dần."
+    ],
+    "xu_ly_ngan": "GROUP BY phương thức: COUNT(đơn), SUM(tong_tien)",
+    "tien": "Đã đăng nhập với quyền A hoặc Q.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400"
+  },
+  {
+    "id": "BC-05", "ten": "Chi phí nhập hàng so với doanh thu", "quyen": "A/Q",
+    "api": "GET /api/bao-cao/chi-phi-vs-doanh-thu",
+    "mo_ta": "So sánh doanh thu bán hàng với chi phí nhập nguyên liệu theo kỳ.",
+    "dl_vao": ["tu_ngay?, den_ngay?", "nhom? (ngay | tuan | thang)"],
+    "dl_doc": ["HoaDonDaThanhToan: tong_tien (theo ngày thanh toán)", "PhieuNhap: tong_tien_nhap (theo ngày nhập)"],
+    "dl_ra": ["Mảng {ky, doanh_thu, chi_phi_nhap, chenh_lech}"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "Doanh thu lấy từ HoaDonDaThanhToan theo ngày thanh toán; chi phí lấy từ PhieuNhap.tong_tien_nhap theo ngày nhập, cùng cách chia kỳ như BC-01.",
+      "Kỳ chỉ có một phía vẫn xuất hiện (phía kia bằng 0).",
+      "chenh_lech = doanh_thu − chi_phi_nhap (có thể âm)."
+    ],
+    "xu_ly_ngan": "chenh_lech = doanh_thu − chi_phi_nhap (theo từng kỳ)",
+    "tien": "Đã đăng nhập với quyền A hoặc Q.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400"
+  },
+  {
+    "id": "BC-06", "ten": "Doanh thu theo nhân viên", "quyen": "A/Q",
+    "api": "GET /api/bao-cao/doanh-thu-theo-nhan-vien",
+    "mo_ta": "Thống kê số đơn và doanh thu theo nhân viên nhập order.",
+    "dl_vao": ["tu_ngay?, den_ngay?"],
+    "dl_doc": ["HoaDonDaThanhToan: ma_nhan_vien, tong_tien", "NhanVien: ho_ten"],
+    "dl_ra": ["Mảng {ma_nhan_vien, ho_ten, so_don, doanh_thu}"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "GROUP BY ma_nhan_vien (nhân viên nhập order) trên hóa đơn đã thanh toán, kể cả khách vãng lai.",
+      "Xếp theo doanh thu giảm dần."
+    ],
+    "xu_ly_ngan": "GROUP BY nhân viên: COUNT(đơn), SUM(tong_tien) → sắp giảm dần",
+    "tien": "Đã đăng nhập với quyền A hoặc Q.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400"
+  }
+]

@@ -1,0 +1,135 @@
+[
+  {
+    "id": "NS-01", "ten": "Tạo nhân viên và tài khoản", "quyen": "A",
+    "api": "POST /api/nhan-su; GET /api/nhan-su",
+    "mo_ta": "Admin tạo nhân viên mới cùng tài khoản đăng nhập.",
+    "dl_vao": ["ho_ten, chuc_vu, so_dien_thoai?", "ten_dang_nhap, mat_khau, quyen_truy_cap"],
+    "dl_doc": ["TaiKhoan: kiểm tra trùng ten_dang_nhap"],
+    "dl_ra": ["{ma_nhan_vien, ma_tai_khoan, ho_ten, chuc_vu, so_dien_thoai, ten_dang_nhap, quyen_truy_cap, trang_thai}", "(không trả mật khẩu hay băm)"],
+    "dl_luu": ["NhanVien: INSERT", "TaiKhoan: INSERT (mat_khau_hash)"],
+    "xu_ly": [
+      "Chạy trong một transaction (NhanVien + TaiKhoan) dưới khóa tên nhan_su; băm bcrypt ngoài transaction.",
+      "ten_dang_nhap dài 3–50 ký tự (chữ không dấu, số, . _ -), không trùng, không phân biệt hoa thường (409 TRUNG_TEN_DANG_NHAP) và không để lại nhân viên mồ côi.",
+      "Mật khẩu theo cùng chính sách AUTH-02; trường lạ (ví dụ trang_thai) thì 400."
+    ],
+    "xu_ly_ngan": "tên đăng nhập 3–50 ký tự, không trùng ?   mật khẩu đủ mạnh ?   bcrypt(mật khẩu)",
+    "tien": "Đã đăng nhập với quyền admin.",
+    "hau": "Nhân viên có thể đăng nhập bằng tài khoản mới; trạng thái dang_lam.",
+    "phu": "Không.",
+    "loi": "400; 409 TRUNG_TEN_DANG_NHAP"
+  },
+  {
+    "id": "NS-02", "ten": "Sửa nhân viên / đổi quyền", "quyen": "A (Q chỉ sửa thông tin)",
+    "api": "PATCH /api/nhan-su/:ma; GET /api/nhan-su/:ma",
+    "mo_ta": "Cập nhật thông tin, đổi quyền hoặc đặt lại mật khẩu của nhân viên.",
+    "dl_vao": ["ma_nhan_vien (đường dẫn)", "ho_ten?, chuc_vu?, so_dien_thoai? (null = xóa)", "quyen_truy_cap?, mat_khau? (chỉ admin)"],
+    "dl_doc": ["NhanVien, TaiKhoan: bản ghi hiện tại", "TaiKhoan: số admin còn làm việc"],
+    "dl_ra": ["Nhân viên cập nhật (kèm tài khoản)"],
+    "dl_luu": ["NhanVien: UPDATE", "TaiKhoan: UPDATE quyen_truy_cap, mat_khau_hash"],
+    "xu_ly": [
+      "Chỉ admin được đổi quyen_truy_cap và đặt lại mat_khau; quản lý gửi các trường này hoặc sửa tài khoản admin thì 403 và không ghi gì.",
+      "Không đổi ten_dang_nhap hoặc trang_thai (400). Nhân viên chưa có tài khoản mà đổi quyền hoặc mật khẩu thì 409 NHAN_VIEN_KHONG_CO_TAI_KHOAN.",
+      "Không hạ quyền admin cuối cùng đang làm việc (409 ADMIN_CUOI_CUNG).",
+      "Quyền mới có hiệu lực ngay với token đã cấp, vì mỗi request tra lại CSDL."
+    ],
+    "xu_ly_ngan": "người gọi là admin (với quyền, mật khẩu) ?   còn ≥ 1 admin sau khi đổi ?",
+    "tien": "Nhân viên tồn tại; quyền A hoặc Q.",
+    "hau": "Thông tin, quyền hoặc mật khẩu mới có hiệu lực.",
+    "phu": "Đổi quyền ảnh hưởng ngay các token đang dùng.",
+    "loi": "400; 403; 404; 409 NHAN_VIEN_KHONG_CO_TAI_KHOAN, ADMIN_CUOI_CUNG"
+  },
+  {
+    "id": "NS-03", "ten": "Xóa nhân viên / cho nghỉ việc", "quyen": "A",
+    "api": "DELETE /api/nhan-su/:ma",
+    "mo_ta": "Xóa nhân viên chưa có lịch sử, hoặc chuyển sang nghỉ việc nếu đã có lịch sử.",
+    "dl_vao": ["ma_nhan_vien (đường dẫn)"],
+    "dl_doc": ["HoaDon, PhieuNhap, PhanCong: nhân viên đã có lịch sử chưa", "TaiKhoan: quyền, số admin"],
+    "dl_ra": ["da_xoa: true", "hoặc da_xoa: false, trang_thai: nghi_viec, ly_do, so_phan_cong_da_go"],
+    "dl_luu": ["NhanVien, TaiKhoan: DELETE (chưa có lịch sử)", "NhanVien.trang_thai: UPDATE = nghi_viec", "PhanCong: DELETE (từ hôm nay trở đi)"],
+    "xu_ly": [
+      "Chưa có HoaDon, PhieuNhap hay PhanCong trước hôm nay: xóa hẳn nhân viên kèm tài khoản và phân công từ hôm nay.",
+      "Đã có lịch sử: KHÔNG xóa, đặt trang_thai = nghi_viec và gỡ phân công từ hôm nay (gọi lại vẫn 200).",
+      "Nhân viên nghỉ việc bị chặn đăng nhập (403 TAI_KHOAN_BI_KHOA), token cũ mất hiệu lực ngay và không được xếp ca.",
+      "Không tự xóa chính mình (409 KHONG_XOA_CHINH_MINH); không xóa admin cuối cùng (409 ADMIN_CUOI_CUNG)."
+    ],
+    "xu_ly_ngan": "đã có HoaDon/PhieuNhap/PhanCong cũ ? → nghỉ việc, ngược lại xóa hẳn   không xóa mình, admin cuối",
+    "tien": "Đã đăng nhập với quyền admin; nhân viên tồn tại.",
+    "hau": "Nhân viên bị xóa hoặc chuyển nghi_viec; lịch sử hóa đơn được giữ.",
+    "phu": "Gỡ các phân công từ hôm nay; vô hiệu hóa đăng nhập khi nghỉ việc.",
+    "loi": "404; 409 KHONG_XOA_CHINH_MINH, ADMIN_CUOI_CUNG"
+  },
+  {
+    "id": "NS-04", "ten": "Quản lý ca làm việc (thêm, sửa, xóa, xem)", "quyen": "A/Q",
+    "api": "POST, GET /api/nhan-su/ca-lam-viec; GET, PATCH, DELETE /api/nhan-su/ca-lam-viec/:ma",
+    "mo_ta": "Định nghĩa các ca làm việc trong ngày (sáng, chiều, tối...).",
+    "dl_vao": ["ten_ca (≤ 50 ký tự)", "thoi_gian_bat_dau, thoi_gian_ket_thuc (HH:mm)"],
+    "dl_doc": ["CaLamViec", "PhanCong: đếm so_phan_cong"],
+    "dl_ra": ["Ca {ma_ca, ten_ca, thoi_gian_bat_dau, thoi_gian_ket_thuc}", "danh sách kèm so_phan_cong"],
+    "dl_luu": ["CaLamViec: INSERT / UPDATE / DELETE"],
+    "xu_ly": [
+      "Giờ có dạng HH:mm hoặc HH:mm:ss (trả về HH:mm:ss); thoi_gian_bat_dau phải nhỏ hơn thoi_gian_ket_thuc (không qua nửa đêm); khi sửa, kiểm tra trên dữ liệu đã gộp. Tên ca được trùng.",
+      "Chặn xóa khi ca đã có PhanCong (409 CA_DA_CO_PHAN_CONG); khóa dòng ca, khóa ngoại là chốt chặn cuối."
+    ],
+    "xu_ly_ngan": "bắt đầu < kết thúc ?   số phân công của ca = 0 (khi xóa) ?",
+    "tien": "Đã đăng nhập với quyền A hoặc Q.",
+    "hau": "Danh sách ca được cập nhật.",
+    "phu": "Không.",
+    "loi": "400; 404; 409 CA_DA_CO_PHAN_CONG"
+  },
+  {
+    "id": "NS-05", "ten": "Xếp lịch làm việc", "quyen": "A/Q",
+    "api": "POST /api/nhan-su/phan-cong",
+    "mo_ta": "Phân công nhân viên vào ca làm cho một hoặc nhiều ngày.",
+    "dl_vao": ["ma_nhan_vien, ma_ca", "ngay_lam (một ngày hoặc mảng 1–62 ngày, YYYY-MM-DD)"],
+    "dl_doc": ["NhanVien: trang_thai", "CaLamViec: kiểm tra tồn tại", "PhanCong: các ngày đã xếp"],
+    "dl_ra": ["Danh sách phân công vừa tạo, sắp theo ngày"],
+    "dl_luu": ["PhanCong: INSERT"],
+    "xu_ly": [
+      "Chỉ nhận ngày ≥ hôm nay (theo ngày của CSDL), ngày quá khứ thì 400.",
+      "Nhân viên nghỉ việc thì 409 NHAN_VIEN_NGHI_VIEC.",
+      "Tất cả hoặc không gì: có ngày đã xếp thì 409 DA_XEP_LICH (chi_tiet.ngay_da_xep); khóa chính (ma_nhan_vien, ma_ca, ngay_lam) chặn cả khi hai yêu cầu chạy song song.",
+      "Một nhân viên được nhiều ca khác nhau trong cùng ngày."
+    ],
+    "xu_ly_ngan": "ngày ≥ hôm nay ?   nhân viên đang làm ?   (nhân viên, ca, ngày) chưa có ?",
+    "tien": "Nhân viên và ca đã tồn tại; nhân viên chưa nghỉ việc.",
+    "hau": "Nhân viên có lịch trong các ngày đã xếp.",
+    "phu": "Không.",
+    "loi": "400; 404; 409 NHAN_VIEN_NGHI_VIEC, DA_XEP_LICH"
+  },
+  {
+    "id": "NS-06", "ten": "Xóa phân công", "quyen": "A/Q",
+    "api": "DELETE /api/nhan-su/phan-cong",
+    "mo_ta": "Gỡ một nhân viên khỏi một ca trong một ngày.",
+    "dl_vao": ["ma_nhan_vien, ma_ca, ngay_lam (query)"],
+    "dl_doc": ["PhanCong: dòng cần xóa"],
+    "dl_ra": ["da_xoa: true"],
+    "dl_luu": ["PhanCong: DELETE"],
+    "xu_ly": [
+      "Phân công phải tồn tại (404 nếu không).",
+      "Xóa được cả ngày đã qua."
+    ],
+    "xu_ly_ngan": "phân công (nhân viên, ca, ngày) tồn tại ?",
+    "tien": "Phân công tồn tại.",
+    "hau": "Nhân viên không còn lịch ở ca đó trong ngày đó.",
+    "phu": "Không.",
+    "loi": "400; 404"
+  },
+  {
+    "id": "NS-07", "ten": "Xem lịch làm việc theo tuần", "quyen": "A/Q xem tất cả hoặc lọc; N chỉ của mình",
+    "api": "GET /api/nhan-su/lich-tuan",
+    "mo_ta": "Xem lịch làm việc trong một tuần (từ thứ Hai).",
+    "dl_vao": ["tu_ngay? (phải là thứ Hai; mặc định thứ Hai tuần này)", "ma_nhan_vien?"],
+    "dl_doc": ["PhanCong, CaLamViec", "NhanVien: ho_ten"],
+    "dl_ra": ["Mảng {ngay_lam, ma_ca, ten_ca, thoi_gian_bat_dau, thoi_gian_ket_thuc, ma_nhan_vien, ho_ten}", "tu_ngay, den_ngay"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "Cửa sổ 7 ngày [tu_ngay, tu_ngay + 6]; sắp theo ngày và giờ ca; tu_ngay không phải thứ Hai thì 400.",
+      "Nhân viên (N) để trống ma_nhan_vien thì xem lịch của mình; xin lịch người khác thì 403."
+    ],
+    "xu_ly_ngan": "tu_ngay là thứ Hai ?   N chỉ xem lịch của mình ?   khoảng [tu_ngay, tu_ngay + 6]",
+    "tien": "Đã đăng nhập.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400; 401; 403"
+  }
+]

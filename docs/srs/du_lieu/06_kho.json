@@ -1,0 +1,119 @@
+[
+  {
+    "id": "KHO-01", "ten": "Quản lý nguyên liệu (thêm, sửa, xóa, xem)", "quyen": "A/Q",
+    "api": "POST, GET /api/kho/nguyen-lieu; GET, PATCH, DELETE /api/kho/nguyen-lieu/:ma",
+    "mo_ta": "Quản lý danh mục nguyên liệu dùng để pha chế và định mức tồn tối thiểu.",
+    "dl_vao": ["ten_nguyen_lieu, don_vi_tinh", "muc_ton_toi_thieu? (mặc định 0)", "tu_khoa?, trang?, moi_trang? (khi xem)"],
+    "dl_doc": ["NguyenLieu (kiểm tra trùng tên, tồn hiện tại)", "CongThuc, ChiTietNhap: nguyên liệu đang được dùng"],
+    "dl_ra": ["Nguyên liệu {ma_nguyen_lieu, ten_nguyen_lieu, don_vi_tinh, so_luong_ton, muc_ton_toi_thieu}", "da_xoa: true (khi xóa)"],
+    "dl_luu": ["NguyenLieu: INSERT / UPDATE / DELETE"],
+    "xu_ly": [
+      "so_luong_ton khởi tạo 0 và KHÔNG sửa được ở đây (gửi trường này hoặc trường lạ thì 400); chỉ đổi qua nhập hàng (KHO-04, tăng) và bán hàng (POS, giảm).",
+      "Tên không trùng, không phân biệt hoa thường (409 TRUNG_TEN_NGUYEN_LIEU); tự cắt khoảng trắng; số lượng tối đa 3 chữ số thập phân.",
+      "Chặn đổi don_vi_tinh khi còn tồn hoặc đã có trong công thức hay phiếu nhập (409 KHONG_DOI_DON_VI).",
+      "Chặn xóa khi đã có trong CongThuc hoặc ChiTietNhap (409 NGUYEN_LIEU_DANG_DUNG).",
+      "Mọi thao tác sửa và xóa khóa dòng nguyên liệu (FOR UPDATE) trước."
+    ],
+    "xu_ly_ngan": "tên không trùng ?   chỉ đổi đơn vị khi tồn = 0 và chưa dùng ?   chỉ xóa khi chưa có trong công thức/phiếu nhập",
+    "tien": "Đã đăng nhập với quyền A hoặc Q.",
+    "hau": "Danh mục nguyên liệu được cập nhật.",
+    "phu": "Không.",
+    "loi": "400; 404; 409 TRUNG_TEN_NGUYEN_LIEU, KHONG_DOI_DON_VI, NGUYEN_LIEU_DANG_DUNG"
+  },
+  {
+    "id": "KHO-02", "ten": "Quản lý nhà cung cấp (thêm, sửa, xóa, xem)", "quyen": "A/Q",
+    "api": "POST, GET /api/kho/nha-cung-cap; GET, PATCH, DELETE /api/kho/nha-cung-cap/:ma",
+    "mo_ta": "Quản lý các nhà cung cấp nguyên liệu.",
+    "dl_vao": ["ten_ncc, so_dien_thoai?, dia_chi?", "tu_khoa?, trang?, moi_trang? (khi xem)"],
+    "dl_doc": ["NhaCungCap", "PhieuNhap: nhà cung cấp đã có phiếu nhập chưa"],
+    "dl_ra": ["Nhà cung cấp {ma_ncc, ten_ncc, so_dien_thoai, dia_chi}", "da_xoa: true (khi xóa)"],
+    "dl_luu": ["NhaCungCap: INSERT / UPDATE / DELETE"],
+    "xu_ly": [
+      "so_dien_thoai gồm 10–11 chữ số bắt đầu bằng 0; khi sửa gửi null để xóa SĐT hoặc địa chỉ.",
+      "Danh sách tìm theo tên hoặc SĐT, có phân trang.",
+      "Chặn xóa khi đã có PhieuNhap (409 NCC_DA_CO_PHIEU_NHAP); khóa dòng nhà cung cấp trước khi xóa."
+    ],
+    "xu_ly_ngan": "SĐT 10–11 chữ số, bắt đầu 0 ?   số phiếu nhập của nhà cung cấp = 0 (khi xóa) ?",
+    "tien": "Đã đăng nhập với quyền A hoặc Q.",
+    "hau": "Danh sách nhà cung cấp được cập nhật.",
+    "phu": "Không.",
+    "loi": "400; 404; 409 NCC_DA_CO_PHIEU_NHAP"
+  },
+  {
+    "id": "KHO-03", "ten": "Đặt công thức pha chế", "quyen": "A/Q",
+    "api": "GET, PUT /api/kho/cong-thuc/:ma",
+    "mo_ta": "Khai báo định lượng nguyên liệu cần cho một ly của mỗi sản phẩm.",
+    "dl_vao": ["ma_san_pham (đường dẫn)", "nguyen_lieu[]: ma_nguyen_lieu, dinh_luong"],
+    "dl_doc": ["SanPham, NguyenLieu: kiểm tra tồn tại", "CongThuc: công thức hiện tại"],
+    "dl_ra": ["Công thức mới {ma_san_pham, ten_san_pham, nguyen_lieu[]}"],
+    "dl_luu": ["CongThuc: DELETE công thức cũ rồi INSERT công thức mới"],
+    "xu_ly": [
+      "dinh_luong > 0, tối đa 3 chữ số thập phân; không lặp nguyên liệu; tối đa 50 dòng; mảng rỗng nghĩa là xóa công thức.",
+      "Thay TOÀN BỘ công thức cũ trong một transaction; một nguyên liệu không tồn tại thì 404 và giữ nguyên công thức cũ.",
+      "Thứ tự khóa SanPham → NguyenLieu (mã tăng dần), trùng với thứ tự khi bán hàng nên không deadlock.",
+      "Lưu ý: order đang mở đã trừ kho theo công thức cũ; hủy hoặc bỏ ly sau đó hoàn kho theo công thức mới (hệ thống không lưu công thức lúc gọi)."
+    ],
+    "xu_ly_ngan": "dinh_luong > 0 ?   không lặp nguyên liệu ?   thay toàn bộ công thức trong 1 transaction",
+    "tien": "Sản phẩm và các nguyên liệu đã tồn tại.",
+    "hau": "Menu (POS-01) tính so_ly_toi_da theo công thức mới.",
+    "phu": "Ảnh hưởng số nguyên liệu hoàn lại của các order đang mở khi hủy.",
+    "loi": "400; 404"
+  },
+  {
+    "id": "KHO-04", "ten": "Lập phiếu nhập hàng", "quyen": "A/Q",
+    "api": "POST /api/kho/phieu-nhap",
+    "mo_ta": "Ghi nhận nguyên liệu nhập từ nhà cung cấp và tăng tồn kho.",
+    "dl_vao": ["ma_ncc", "ngay_nhap? (mặc định bây giờ)", "items[]: ma_nguyen_lieu, so_luong_nhap, don_gia_nhap", "ma_nhan_vien (lấy từ token)"],
+    "dl_doc": ["NhaCungCap, NguyenLieu: kiểm tra tồn tại, tồn hiện tại"],
+    "dl_ra": ["{ma_phieu_nhap, tong_tien_nhap, chi_tiet[]}", "ton_moi[]: so_luong_ton, muc_ton_toi_thieu, sap_het"],
+    "dl_luu": ["PhieuNhap, ChiTietNhap: INSERT", "NguyenLieu.so_luong_ton: UPDATE (cộng)"],
+    "xu_ly": [
+      "items có 1–100 dòng, không lặp nguyên liệu; so_luong_nhap > 0 (3 số lẻ), don_gia_nhap > 0 (2 số lẻ); ngay_nhap không ở tương lai.",
+      "Một transaction: khóa nhà cung cấp (chia sẻ) rồi các nguyên liệu (mã tăng dần); tạo PhieuNhap và ChiTietNhap.",
+      "tong_tien_nhap = Σ làm tròn nửa lên TỪNG dòng (so_luong_nhap × don_gia_nhap) đến 0,01, tính bằng số nguyên.",
+      "Cộng so_luong_ton; nếu tồn vượt giới hạn lưu trữ thì 409 TON_KHO_VUOT_GIOI_HAN. Thiếu nhà cung cấp hoặc nguyên liệu: 404, không đổi gì."
+    ],
+    "xu_ly_ngan": "tong_tien_nhap = Σ làm tròn (SL nhập × đơn giá)   so_luong_ton += so_luong_nhap",
+    "tien": "Nhà cung cấp và nguyên liệu đã tồn tại.",
+    "hau": "Tồn kho tăng; có phiếu nhập để tra cứu.",
+    "phu": "Tăng tồn kho.",
+    "loi": "400 số lượng hoặc giá ≤ 0; 404 NCC/nguyên liệu; 409 TON_KHO_VUOT_GIOI_HAN"
+  },
+  {
+    "id": "KHO-05", "ten": "Lịch sử nhập hàng", "quyen": "A/Q",
+    "api": "GET /api/kho/phieu-nhap; GET /api/kho/phieu-nhap/:ma",
+    "mo_ta": "Tra cứu các phiếu nhập theo ngày, theo nhà cung cấp và xem chi tiết một phiếu.",
+    "dl_vao": ["tu_ngay?, den_ngay? (YYYY-MM-DD)", "ma_ncc?, trang?, moi_trang?", "ma_phieu_nhap (khi xem chi tiết)"],
+    "dl_doc": ["PhieuNhap, ChiTietNhap", "NhaCungCap: ten_ncc", "NhanVien: ho_ten"],
+    "dl_ra": ["Mảng phiếu: ma_phieu_nhap, ten_ncc, ten_nhan_vien, ngay_nhap, tong_tien_nhap, so_dong", "chi_tiet[] kèm thanh_tien (khi xem chi tiết)"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "Lọc theo NGÀY nhập; den_ngay tính trọn ngày; sắp mới nhất trước.",
+      "tong_tien_nhap và tong_so_ban_ghi tính trên TOÀN BỘ kết quả lọc, không chỉ trang hiện tại.",
+      "Chi tiết một phiếu: thanh_tien = so_luong_nhap × don_gia_nhap của từng dòng."
+    ],
+    "xu_ly_ngan": "lọc theo ngày nhập, nhà cung cấp   thanh_tien = SL nhập × đơn giá",
+    "tien": "Đã đăng nhập với quyền A hoặc Q.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400"
+  },
+  {
+    "id": "KHO-06", "ten": "Xem tồn kho và cảnh báo sắp hết", "quyen": "A/Q",
+    "api": "GET /api/kho/ton-kho",
+    "mo_ta": "Xem tồn kho từng nguyên liệu và cảnh báo nguyên liệu sắp hết.",
+    "dl_vao": ["chi_sap_het? (true/false)", "tu_khoa?"],
+    "dl_doc": ["NguyenLieu: so_luong_ton, muc_ton_toi_thieu"],
+    "dl_ra": ["Mảng {ma_nguyen_lieu, ten_nguyen_lieu, so_luong_ton, muc_ton_toi_thieu, don_vi_tinh, sap_het}"],
+    "dl_luu": ["Không ghi CSDL"],
+    "xu_ly": [
+      "sap_het = (so_luong_ton ≤ muc_ton_toi_thieu), cùng quy tắc với canh_bao_kho khi bán hàng.",
+      "Sắp hết đứng đầu, sau đó theo tên; không phân trang."
+    ],
+    "xu_ly_ngan": "sap_het = (so_luong_ton ≤ muc_ton_toi_thieu)",
+    "tien": "Đã đăng nhập với quyền A hoặc Q.",
+    "hau": "Không thay đổi dữ liệu.",
+    "phu": "Không.",
+    "loi": "400"
+  }
+]

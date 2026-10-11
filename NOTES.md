@@ -270,3 +270,23 @@
 ## Rà soát backend cuối (sau 9c)
 - Toàn bộ bộ test: 222/222. `lap-test --ddl` lặp nhiều lần: 0 lỗi (xem log trong `logs/`).
 - Backend đã đủ: AUTH-01..02, SP, KH-01..05, KM-01..07, POS, KHO-01..06, NS-01..07, BC-01..06. Frontend vẫn là stub.
+
+## Đặc tả yêu cầu chức năng có sơ đồ vào/ra (đã làm)
+- Yêu cầu: viết đặc tả cho MỌI chức năng, mỗi chức năng có sơ đồ theo bố cục hình phác thảo (thiết bị vào / dữ liệu vào / dữ liệu độc lập từ CSDL -> Xử lý -> thiết bị ra / dữ liệu ra / dữ liệu lưu xuống CSDL; dòng "Xử lý: công thức tính toán, so sánh điều kiện"); bảng đặc tả theo dạng form (Chương 4 Requirements Engineering).
+- Kết quả: docs/Dac_ta_yeu_cau_chuc_nang.docx (A4 ngang, 113 trang, 49 chức năng: AUTH 2, SP 5, POS 11, KM 7, KH 5, KHO 6, NS 7, BC 6). Mỗi chức năng 2 trang: trang 1 = tiêu đề + sơ đồ; trang 2 = bảng đặc tả (đầu vào, dữ liệu độc lập, xử lý đánh số ID.n, đầu ra, dữ liệu lưu, tiền/hậu điều kiện, tác dụng phụ, mã lỗi). Có phụ lục truy vết chức năng <-> bảng CSDL (tự sinh).
+- Cấu trúc thư mục mới (docs/srs/): du_lieu/00_meta.json + 01..08_*.json (NGUỒN dữ liệu từng chức năng, sửa ở đây), ve_so_do.py (vẽ so_do/*.png), build_srs.js (dựng Word), so_do/ (49 ảnh + _mau.png).
+- Chạy lại: cd docs/srs && python3 ve_so_do.py && node build_srs.js   (cần: pip install matplotlib pillow; npm i docx)
+- Cách hiểu hình phác thảo (tui tự đặt, dễ đổi): "dl độc lập" = dữ liệu có sẵn trong CSDL mà chức năng đọc; "dl ... xuống" = dữ liệu lưu xuống CSDL. Thiết bị vào/ra mặc định: bàn phím/chuột và màn hình trình duyệt (POS-11 thêm máy in hóa đơn) vì frontend còn là stub.
+- Nội dung lấy từ docs/build_doc.js (đặc tả cũ), schema.sql, routes và NOTES; chưa sửa mã nguồn backend. Dữ liệu ghi tay trong du_lieu/*.json nên nếu đổi hành vi API phải sửa cả JSON.
+- Đã kiểm tra: validate.py của docx qua; render PDF bằng LibreOffice, xem lại các trang đầu và mẫu từng nhóm. Chưa đọc lại từng chữ của 49 chức năng với mã nguồn (dựa vào đặc tả cũ đã được test).
+
+
+## Bước 4 – Giao diện web cho quản lý + admin, đợt 1 (đã làm; build + test giao diện bằng dữ liệu giả; CHƯA chạy với backend/MySQL thật)
+- Bản mẫu giao diện người dùng đã duyệt nằm ở docs/mockup/ (canvas.json + các file .dc.html: đăng nhập, sản phẩm, tồn kho, báo cáo, menu).
+- Chạy: terminal 1 `cd backend && npm start`; terminal 2 `cd frontend && npm install && npm run dev` rồi mở http://localhost:5173 (Vite chuyển /api sang http://localhost:3000, không cần .env). Đăng nhập: quanly/Quanly@123 hoặc admin/Admin@123.
+- Đợt 1 gồm: nền tảng (Vite, React Router, lớp gọi API có Authorization + xử lý 401, AuthContext khôi phục phiên qua /auth/toi, chặn route theo quyền), khung menu theo quyền (admin thấy thêm "Tài khoản và quyền"; dùng được trên điện thoại), AUTH-01 đăng nhập, AUTH-02 đổi mật khẩu (hộp thoại từ menu), SP-01 quản lý danh mục, SP-02..05 thêm/sửa/ngừng bán/xóa/danh sách có lọc + phân trang, và xem/sửa công thức từng sản phẩm (KHO-03).
+- Các màn còn lại (Khuyến mãi, Tồn kho, Nhập hàng, Khách hàng, Lịch làm việc, Nhân viên, Tài khoản, Báo cáo) đang là trang giữ chỗ ChuaLam; nhân viên đăng nhập sẽ thấy trang "chưa có giao diện" (giao diện bán hàng làm sau).
+- Cấu trúc frontend/src: api/ (http.js + một file mỗi module), context/AuthContext.jsx, hooks/useApi.js, routes/{AppRoutes,RequireRole}.jsx, layouts/{MainLayout,AuthLayout}.jsx, components/{Dialog,ConfirmDialog,Toast,DataTable,Pagination,Icon}.jsx, pages/{auth,san-pham,chung}/, styles/index.css (token màu lấy từ bản mẫu), utils/{format,loi}.js.
+- Quyết định: (1) cột Khuyến mãi và Công thức của bảng sản phẩm ghép từ GET /san-pham/menu vì API danh sách quản trị không trả hai thông tin này; sản phẩm ngừng bán không có trong menu nên hiện "Không có"/"—". (2) Chip khuyến mãi hiện tên khuyến mãi (API chỉ trả mức giảm theo đồng mỗi ly, hiện trong chú thích khi rê chuột), không hiện "%" như bản mẫu. (3) Nút Xóa luôn bật; sản phẩm đã bán thì backend trả 409 và giao diện hiện đúng thông báo (không đoán trước được). (4) Cột "Danh mục" gộp vào dưới tên sản phẩm cho vừa chiều rộng.
+- Kiểm tra: `cd frontend && npm run build` qua. frontend/scripts/smoke-ui.mjs chặn /api bằng dữ liệu giả từ seed.sql, kiểm tra đăng nhập sai/đúng, bảng 8 sản phẩm, ẩn mục chỉ-admin, panel sửa, tìm kiếm, không có lỗi console, và chụp ảnh vào frontend/scripts/anh-smoke/. Chạy lại: `cd frontend && npm run build && npx vite preview --port 4173 &` rồi `node scripts/smoke-ui.mjs` (cần `npm i -D playwright`; sandbox dùng chromium có sẵn).
+- Giới hạn đã biết: chưa thử với backend/MySQL thật (sandbox hiện không có MariaDB); token lưu localStorage (đơn giản, chấp nhận cho đồ án).

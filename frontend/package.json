@@ -1,0 +1,22 @@
+{
+  "name": "cafe-management-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Giao diện web hệ thống quản lý quán cà phê (React + Vite)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.3",
+    "vite": "^5.4.10"
+  }
+}
