@@ -10,7 +10,7 @@ export default function DataTable({ cot, dong, khoaDong, dangChon, onChonDong, d
           {dong.map(d => {
             const k = d[khoaDong];
             const chon = dangChon === k;
-            const mo = d.__mo ? ' mo' : '';
+            const mo = (d.__mo ? ' mo' : '') + (d.__canhBao ? ' canh-bao-dong' : '');
             return (
               <tr key={k} className={`${onChonDong ? 'bam' : ''}${chon ? ' chon' : ''}${mo}`}
                   tabIndex={onChonDong ? 0 : undefined} aria-selected={onChonDong ? chon : undefined}

@@ -8,7 +8,7 @@ import { vienChu } from '../utils/format.js';
 
 const NHOM = [
   { ten: 'Thực đơn', muc: [{ den: '/san-pham', nhan: 'Sản phẩm', icon: 'coc' }, { den: '/khuyen-mai', nhan: 'Khuyến mãi', icon: 'nhan' }] },
-  { ten: 'Kho', muc: [{ den: '/kho', nhan: 'Tồn kho', icon: 'kho' }, { den: '/nhap-hang', nhan: 'Nhập hàng', icon: 'nhap' }] },
+  { ten: 'Kho', muc: [{ den: '/kho', nhan: 'Tồn kho', icon: 'kho', khop: p => p.startsWith('/kho') && p !== '/kho/lich-su-nhap' }, { den: '/kho/lich-su-nhap', nhan: 'Nhập hàng', icon: 'nhap', khop: p => p === '/kho/lich-su-nhap' }] },
   { ten: 'Khách hàng', muc: [{ den: '/khach-hang', nhan: 'Khách hàng', icon: 'khach' }] },
   { ten: 'Nhân sự', muc: [
     { den: '/lich-lam-viec', nhan: 'Lịch làm việc', icon: 'lich' },
@@ -44,7 +44,7 @@ export default function MainLayout() {
             <div key={n.ten} className="menu-nhom">
               <div className="menu-nhom-ten">{n.ten}</div>
               {n.muc.filter(m => !m.chiAdmin || laAdmin).map(m => (
-                <NavLink key={m.den} to={m.den} className={({ isActive }) => `menu-muc${isActive ? ' active' : ''}`}>
+                <NavLink key={m.den} to={m.den} className={({ isActive }) => `menu-muc${(m.khop ? m.khop(viTri.pathname) : isActive) ? ' active' : ''}`}>
                   <Icon ten={m.icon} /><span>{m.nhan}</span>
                 </NavLink>
               ))}

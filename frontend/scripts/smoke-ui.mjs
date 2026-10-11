@@ -16,6 +16,11 @@ const sp = [
   [7, 4, 'Bánh', 'Bánh tiramisu', 45000, 'con_ban'], [8, 4, 'Bánh', 'Croissant', 30000, 'ngung_ban'],
 ].map(([ma, dm, tdm, ten, gia, tt]) => ({ ma_san_pham: ma, ma_danh_muc: dm, ten_danh_muc: tdm, ten_san_pham: ten, gia_ban: String(gia) + '.00', trang_thai: tt }));
 const nl = [[1, 'Cà phê bột', 'g'], [2, 'Sữa đặc', 'g'], [3, 'Trân châu', 'g']].map(([m, t, d]) => ({ ma_nguyen_lieu: m, ten_nguyen_lieu: t, don_vi_tinh: d, so_luong_ton: '5000', muc_ton_toi_thieu: '1000' }));
+const nlKho = [[1, 'Trân châu', 'g', 800, 1000], [2, 'Trà đen', 'g', 2000, 500], [3, 'Sữa đặc', 'g', 4000, 1000], [4, 'Cà phê bột', 'g', 5000, 1000], [5, 'Đường', 'g', 6000, 1500], [6, 'Sữa tươi', 'ml', 8000, 2000]]
+  .map(([m, t, d, ton, min]) => ({ ma_nguyen_lieu: m, ten_nguyen_lieu: t, don_vi_tinh: d, so_luong_ton: ton.toFixed(3), muc_ton_toi_thieu: min.toFixed(3), sap_het: ton <= min }));
+const nccKho = [{ ma_ncc: 1, ten_ncc: 'Đại lý Sữa và Nguyên liệu Sài Gòn', so_dien_thoai: '0901234567', dia_chi: 'Quận 5' }, { ma_ncc: 2, ten_ncc: 'Công ty Cà phê Tây Nguyên', so_dien_thoai: null, dia_chi: null }];
+const phieu = [{ ma_phieu_nhap: 4, ma_ncc: 1, ten_ncc: nccKho[0].ten_ncc, ma_nhan_vien: 2, ten_nhan_vien: 'Trần Thị Quản Lý', ngay_nhap: '2026-10-10T08:30:00.000Z', tong_tien_nhap: '2250000.00', so_dong: 2 }];
+let phieuPost = null;
 const nguoi = { ma_tai_khoan: 1, ma_nhan_vien: 2, ho_ten: 'Trần Thị Quản Lý', quyen_truy_cap: 'quan_ly' };
 const json = (route, body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -42,7 +47,15 @@ await trang.route('**/api/**', route => {
     return json(route, { ok: true, data: ds, tong_so_ban_ghi: ds.length, trang: 1, moi_trang: 10 });
   }
   if (p.startsWith('/kho/cong-thuc/')) return json(route, { ok: true, data: { ma_san_pham: 2, ten_san_pham: 'Cà phê sữa', nguyen_lieu: [{ ma_nguyen_lieu: 1, ten_nguyen_lieu: 'Cà phê bột', don_vi_tinh: 'g', dinh_luong: '15.000' }, { ma_nguyen_lieu: 2, ten_nguyen_lieu: 'Sữa đặc', don_vi_tinh: 'g', dinh_luong: '30.000' }] } });
-  if (p === '/kho/nguyen-lieu') return json(route, { ok: true, data: nl, tong_so_ban_ghi: 3, trang: 1, moi_trang: 100 });
+  if (p === '/kho/nguyen-lieu') return json(route, { ok: true, data: nlKho, tong_so_ban_ghi: nlKho.length, trang: 1, moi_trang: 100 });
+  if (p === '/kho/nha-cung-cap') return json(route, { ok: true, data: nccKho, tong_so_ban_ghi: nccKho.length, trang: 1, moi_trang: 100 });
+  if (p === '/kho/ton-kho') {
+    const chi = u.searchParams.get('chi_sap_het') === 'true';
+    return json(route, { ok: true, data: [...nlKho].sort((a, b) => Number(b.sap_het) - Number(a.sap_het)).filter(x => !chi || x.sap_het) });
+  }
+  if (p === '/kho/phieu-nhap' && pt === 'POST') { phieuPost = JSON.parse(route.request().postData()); return json(route, { ok: true, data: { ma_phieu_nhap: 5, tong_tien_nhap: '450000.00', chi_tiet: [], ton_moi: [] } }, 201); }
+  if (p === '/kho/phieu-nhap') return json(route, { ok: true, data: phieu, tong_tien_nhap: '2250000.00', tong_so_ban_ghi: 1, trang: 1, moi_trang: 10 });
+  if (p === '/kho/phieu-nhap/4') return json(route, { ok: true, data: { ...phieu[0], chi_tiet: [{ ma_nguyen_lieu: 1, ten_nguyen_lieu: 'Trân châu', don_vi_tinh: 'g', so_luong_nhap: '5000.000', don_gia_nhap: '90.00', thanh_tien: '450000.00' }, { ma_nguyen_lieu: 4, ten_nguyen_lieu: 'Cà phê bột', don_vi_tinh: 'g', so_luong_nhap: '10000.000', don_gia_nhap: '180.00', thanh_tien: '1800000.00' }] } });
   return json(route, { ok: false, loi: 'KHONG_TIM_THAY', thong_bao: `chưa giả lập ${pt} ${p}` }, 404);
 });
 
@@ -65,6 +78,40 @@ kiemTra(await trang.getByRole('complementary', { name: 'Sửa sản phẩm' }).c
 await trang.screenshot({ path: RA + '2-san-pham.png' });
 await trang.fill('#tk', 'trà'); await trang.waitForTimeout(600);
 kiemTra(await trang.locator('tbody tr').count() === 2, 'tìm "trà" còn 2 dòng');
+// ---- Cụm Kho ----
+await trang.getByRole('link', { name: 'Tồn kho' }).first().click();
+await trang.waitForURL('**/kho');
+await trang.locator('tbody tr').first().waitFor();
+kiemTra(await trang.getByText('Trân châu còn 800 g').count() === 1, 'cảnh báo Trân châu còn 800 g');
+kiemTra(await trang.locator('tbody tr').count() === 6, 'tồn kho có 6 nguyên liệu');
+kiemTra((await trang.locator('tbody tr').first().innerText()).includes('Trân châu'), 'nguyên liệu sắp hết xếp đầu bảng');
+await trang.getByRole('button', { name: 'Lập phiếu nhập' }).first().click();
+kiemTra(await trang.getByLabel('Nguyên liệu dòng 1').inputValue() === '1', 'bấm cảnh báo điền sẵn Trân châu vào phiếu');
+await trang.getByLabel('Nhà cung cấp').selectOption('1');
+await trang.getByLabel('Số lượng dòng 1').fill('5000');
+await trang.getByLabel('Đơn giá dòng 1').fill('90');
+kiemTra((await trang.locator('.tong-tien').innerText()).includes('450.000đ'), 'tổng tiền phiếu 450.000đ');
+await trang.screenshot({ path: RA + '4-ton-kho.png' });
+await trang.getByRole('button', { name: 'Lưu phiếu nhập' }).click();
+await trang.getByText('Đã lưu phiếu nhập #5').waitFor();
+kiemTra(phieuPost?.ma_ncc === 1 && phieuPost.items[0].ma_nguyen_lieu === 1 && phieuPost.items[0].so_luong_nhap === 5000 && phieuPost.items[0].don_gia_nhap === 90, 'gửi đúng nội dung phiếu nhập');
+await trang.getByRole('button', { name: 'Lưu phiếu nhập' }).click();
+kiemTra(await trang.getByText('Chọn nhà cung cấp').count() >= 1, 'phiếu trống báo lỗi chọn nhà cung cấp');
+await trang.getByRole('link', { name: 'Nguyên liệu', exact: true }).click();
+await trang.locator('tbody tr', { hasText: 'Đường' }).click();
+await trang.getByRole('complementary', { name: 'Sửa nguyên liệu' }).waitFor();
+await trang.screenshot({ path: RA + '5-nguyen-lieu.png' });
+await trang.getByRole('link', { name: 'Nhà cung cấp', exact: true }).click();
+await trang.locator('tbody tr', { hasText: 'Tây Nguyên' }).waitFor();
+kiemTra(await trang.locator('tbody tr').count() === 2, 'nhà cung cấp có 2 dòng');
+await trang.getByRole('link', { name: 'Nhập hàng' }).click();
+await trang.waitForURL('**/kho/lich-su-nhap');
+await trang.locator('tbody tr', { hasText: '#4' }).click();
+await trang.getByRole('dialog', { name: 'Phiếu nhập #4' }).getByText('1.800.000đ').waitFor();
+kiemTra(true, 'chi tiết phiếu nhập #4 hiện đúng thành tiền');
+await trang.screenshot({ path: RA + '6-lich-su-nhap.png' });
+await trang.keyboard.press('Escape');
+await trang.getByRole('link', { name: 'Sản phẩm' }).click();
 await trang.setViewportSize({ width: 390, height: 800 });
 await trang.waitForTimeout(500); // chờ hiệu ứng trượt của menu
 await trang.screenshot({ path: RA + '3-di-dong.png' });

@@ -4,6 +4,7 @@ import RequireRole from './RequireRole.jsx';
 import MainLayout from '../layouts/MainLayout.jsx';
 import DangNhap from '../pages/auth/index.jsx';
 import SanPham from '../pages/san-pham/index.jsx';
+import Kho from '../pages/kho/index.jsx';
 import ChuaLam from '../pages/chung/ChuaLam.jsx';
 import KhongCoQuyen from '../pages/chung/KhongCoQuyen.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -27,8 +28,8 @@ export default function AppRoutes() {
         <Route element={<MainLayout />}>
           <Route path="/san-pham" element={<SanPham />} />
           <Route path="/khuyen-mai" element={<ChuaLam ten="Khuyến mãi" ma="KM-01..07" />} />
-          <Route path="/kho" element={<ChuaLam ten="Tồn kho" ma="KHO-01..06" />} />
-          <Route path="/nhap-hang" element={<ChuaLam ten="Nhập hàng" ma="KHO-04" />} />
+          <Route path="/kho/:tab?" element={<Kho />} />
+          <Route path="/nhap-hang" element={<Navigate to="/kho/lich-su-nhap" replace />} />
           <Route path="/khach-hang" element={<ChuaLam ten="Khách hàng" ma="KH-01..05" />} />
           <Route path="/lich-lam-viec" element={<ChuaLam ten="Lịch làm việc" ma="NS" />} />
           <Route path="/nhan-vien" element={<ChuaLam ten="Nhân viên" ma="NS" />} />

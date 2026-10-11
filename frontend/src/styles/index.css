@@ -162,3 +162,19 @@ table.bang tbody tr.mo td { color: var(--muted); }
 .trang-trong { padding: 64px 24px; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
 .trang-trong h1 { font-size: 24px; }
 .trang-trong p { color: var(--muted); max-width: 460px; }
+
+/* ---------- Cụm Kho ---------- */
+.the-tab { display: flex; flex-wrap: wrap; gap: 8px; }
+.vien-tab { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); font-weight: 500; text-decoration: none; }
+.vien-tab:hover { background: var(--teal-row); }
+.vien-tab.active { background: var(--teal); border-color: var(--teal); color: #fff; font-weight: 600; }
+.canh-bao { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px 20px; background: var(--warn-bg); border: 1px solid #F0D49A; border-radius: var(--radius-lg); color: #5E3800; }
+.canh-bao p { flex: 1 1 280px; line-height: 24px; }
+.btn-canh-bao { background: #8A5300; border-color: #8A5300; color: #fff; }
+.btn-canh-bao:hover:not(:disabled) { background: #6E4200; }
+table.bang tbody tr.canh-bao-dong { background: #FFFAF0; }
+.chu-thich { padding: 12px 16px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); }
+.dong-nhap { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--bg); border-radius: var(--radius); }
+.btn-net-dut { color: var(--teal); border: 1px dashed var(--teal); width: 100%; }
+.tong-tien { display: flex; justify-content: space-between; align-items: baseline; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); }
+.tong-tien strong { font-size: 24px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
