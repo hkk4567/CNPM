@@ -10,7 +10,7 @@ import KhachHang from '../pages/khach-hang/index.jsx';
 import LichLamViec from '../pages/nhan-su/LichLamViec.jsx';
 import NhanVien from '../pages/nhan-su/NhanVien.jsx';
 import TaiKhoan from '../pages/nhan-su/TaiKhoan.jsx';
-import ChuaLam from '../pages/chung/ChuaLam.jsx';
+import BaoCao from '../pages/bao-cao/index.jsx';
 import KhongCoQuyen from '../pages/chung/KhongCoQuyen.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -38,7 +38,7 @@ export default function AppRoutes() {
           <Route path="/khach-hang/:tab?" element={<KhachHang />} />
           <Route path="/lich-lam-viec/:tab?" element={<LichLamViec />} />
           <Route path="/nhan-vien" element={<NhanVien />} />
-          <Route path="/bao-cao" element={<ChuaLam ten="Báo cáo" ma="BC-01..06" />} />
+          <Route path="/bao-cao/:tab?" element={<BaoCao />} />
         </Route>
       </Route>
       <Route element={<RequireRole quyen={['admin']} />}>

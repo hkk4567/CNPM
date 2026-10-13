@@ -201,3 +201,51 @@ table.bang.lich .hom-nay { background: var(--teal-row); }
 .the-nv button:hover { background: rgba(20, 82, 76, .15); }
 .them-lich { color: var(--muted); border: 1px dashed var(--line-input); }
 .them-lich:hover { color: var(--teal); border-color: var(--teal); }
+
+/* ---------- Báo cáo ---------- */
+.bo-loc-bc { align-items: flex-end; gap: 16px; }
+.bo-loc-bc .o-nhap[type="date"] { width: 160px; }
+.nhom-radio-dong { display: flex; gap: 20px; min-height: 44px; align-items: center; }
+.nhom-radio-dong label { display: flex; align-items: center; gap: 8px; }
+.nhom-radio-dong input { width: 18px; height: 18px; accent-color: var(--teal); }
+.chi-so { display: flex; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.chi-so > div { flex: 1 1 200px; padding: 20px 24px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid var(--line); min-width: 0; }
+.chi-so > div:last-child { border-right: 0; }
+.chi-so span { font-size: 14px; color: var(--muted); }
+.chi-so strong { font-size: 28px; line-height: 36px; font-weight: 700; overflow-wrap: anywhere; }
+.chi-so small { font-size: 14px; color: var(--muted); }
+.bd-the { padding: 24px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.bd-the h2 { font-size: 18px; line-height: 26px; font-weight: 700; }
+.bd-phu { flex: 1 1 340px; gap: 12px; }
+.bd-dau { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.chuyen-dang { display: flex; gap: 4px; padding: 4px; background: var(--bg); border-radius: var(--radius); }
+.chuyen-dang button { min-height: 36px; padding: 0 14px; font-size: 14px; font-weight: 500; color: var(--muted); background: transparent; border: 0; border-radius: 8px; cursor: pointer; }
+.chuyen-dang button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; }
+.bd-chu-giai { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px; }
+.bd-chu-giai li { display: inline-flex; align-items: center; gap: 8px; }
+.bd-chu-giai i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.bd-khung { position: relative; }
+.bd-tip { position: absolute; z-index: 5; pointer-events: none; min-width: 180px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 4px 16px rgba(26, 43, 42, .14); display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.bd-tip > strong { font-size: 14px; }
+.bd-tip-dong { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.bd-tip-dong i { width: 10px; height: 3px; border-radius: 2px; flex: 0 0 auto; }
+.bd-tip-dong b { margin-left: auto; color: var(--ink); font-variant-numeric: tabular-nums; padding-left: 12px; }
+.bd-khung svg rect:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
+.hbar { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.hbar li { display: grid; grid-template-columns: minmax(110px, 26%) 1fr; align-items: center; gap: 12px; min-height: 36px; padding: 2px 6px; border-radius: 8px; }
+.hbar li:hover, .hbar li:focus-visible { background: var(--teal-row); }
+.hbar-ten { font-weight: 600; overflow-wrap: anywhere; }
+.hbar-vet { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hbar-cot { flex: 0 0 auto; height: 20px; min-width: 2px; width: calc((100% - 190px) * var(--p)); border-radius: 0 4px 4px 0; }
+.hbar-gt { white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 14px; }
+@media (max-width: 560px) { .hbar li { grid-template-columns: 1fr; gap: 2px; } .hbar-cot { width: calc((100% - 190px) * var(--p)); } }
+table.bang.bang-nho { min-width: 0; }
+table.bang.bang-nho td { height: 48px; }
+.dang-tai { opacity: .55; transition: opacity .15s; }
+@media (prefers-reduced-motion: reduce) { .dang-tai { transition: none; } }
+/* Biểu đồ cột giữ bề rộng tối thiểu để chữ trục còn đọc được; màn hẹp thì cuộn ngang trong thẻ, không cuộn cả trang */
+.bd-cuon { overflow-x: auto; } /* chỉ SVG cuộn ngang; chú giải nằm ngoài nên không bị cắt */
+.bd-cuon svg { min-width: 560px; }
+.bd-tip { min-width: 230px; }
+.bd-tip-dong > span { white-space: nowrap; }
+table.bang.bang-nho th { white-space: nowrap; }

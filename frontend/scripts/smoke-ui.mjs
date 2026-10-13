@@ -29,6 +29,8 @@ const kmDs = [
 ];
 let kmPost = null;
 const cong = (t, n) => { const d = new Date(`${t}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const bcReq = {};
+const thuHaiNode = t => { const d = new Date(`${t}T12:00:00Z`); return cong(t, -((d.getUTCDay() + 6) % 7)); };
 let caPost = null; let pcPost = null; let pcGo = null; let lichLoc = null; let nvPost = null; let nvPatch = null; let nvXoa = null;
 const nvDs = [
   { ma_nhan_vien: 1, ho_ten: 'Lê Quản Trị', chuc_vu: 'Chủ quán', so_dien_thoai: '0900000001', trang_thai: 'dang_lam', ma_tai_khoan: 1, ten_dang_nhap: 'admin', quyen_truy_cap: 'admin' },
@@ -79,6 +81,18 @@ await trang.route('**/api/**', route => {
   if (p === '/khuyen-mai/1' && pt === 'GET') return json(route, { ok: true, data: { ...kmDs[2], san_pham: sp.slice(0, 3) } });
   if (p === '/khuyen-mai/1/bao-cao') return json(route, { ok: true, data: { so_hoa_don: 9, so_luong_ban: 12, tong_tien_giam: 34800, doanh_thu_sau_giam: 313200 } });
   if (p === '/khuyen-mai/1' && pt === 'DELETE') return json(route, { ok: false, loi: 'KHUYEN_MAI_DA_DUOC_DUNG', thong_bao: 'Khuyến mãi đã được áp trong hóa đơn nên không xóa được; hãy đặt ngay_ket_thuc về thời điểm hiện tại để ngừng áp dụng' }, 409);
+  if (p.startsWith('/bao-cao/')) {
+    const q = Object.fromEntries(u.searchParams); bcReq[p] = q;
+    if (q.den_ngay === '2000-01-01') return json(route, { ok: true, data: [] });
+    const homN = new Date().toISOString().slice(0, 10); const t = q.tu_ngay || homN;
+    const kyDs = q.nhom === 'thang' ? [t.slice(0, 7)] : q.nhom === 'tuan' ? [thuHaiNode(t), thuHaiNode(homN)] : [t, cong(t, 1), cong(t, 2), homN];
+    if (p === '/bao-cao/doanh-thu') return json(route, { ok: true, data: [...new Set(kyDs)].map((ky, i) => ({ ky, so_don: 10 + i, doanh_thu: 1000000 + i * 250000 })) });
+    if (p === '/bao-cao/san-pham-ban-chay') return json(route, { ok: true, data: sp.slice(0, 6).map((s2, i) => ({ ma_san_pham: s2.ma_san_pham, ten_san_pham: s2.ten_san_pham, so_luong: 168 - i * 20, doanh_thu: (168 - i * 20) * 29000 })).slice(0, Number(q.top || 10)) });
+    if (p === '/bao-cao/doanh-thu-theo-danh-muc') return json(route, { ok: true, data: [{ ma_danh_muc: 1, ten_danh_muc: 'Cà phê', doanh_thu: 6000000, ty_le: 60 }, { ma_danh_muc: 2, ten_danh_muc: 'Trà', doanh_thu: 3000000, ty_le: 30 }, { ma_danh_muc: 4, ten_danh_muc: 'Bánh', doanh_thu: 1000000, ty_le: 10 }] });
+    if (p === '/bao-cao/phuong-thuc-thanh-toan') return json(route, { ok: true, data: [{ phuong_thuc: 'tien_mat', so_don: 30, tong_tien: 6000000 }, { phuong_thuc: 'chuyen_khoan', so_don: 15, tong_tien: 3000000 }, { phuong_thuc: 'vi', so_don: 5, tong_tien: 1000000 }] });
+    if (p === '/bao-cao/chi-phi-vs-doanh-thu') return json(route, { ok: true, data: [...new Set(kyDs)].map((ky, i) => ({ ky, doanh_thu: 1000000 + i * 100000, chi_phi_nhap: i === 1 ? 2250000 : 0, chenh_lech: 1000000 + i * 100000 - (i === 1 ? 2250000 : 0) })) });
+    if (p === '/bao-cao/doanh-thu-theo-nhan-vien') return json(route, { ok: true, data: [{ ma_nhan_vien: 3, ho_ten: 'Phạm Văn Nhân Viên', so_don: 40, doanh_thu: 7000000 }, { ma_nhan_vien: 2, ho_ten: 'Trần Thị Quản Lý', so_don: 10, doanh_thu: 3000000 }] });
+  }
   if (p === '/nhan-su/ca-lam-viec' && pt === 'POST') { caPost = JSON.parse(route.request().postData()); return json(route, { ok: true, data: { ma_ca: 3, ...caPost, thoi_gian_bat_dau: caPost.thoi_gian_bat_dau + ':00', thoi_gian_ket_thuc: caPost.thoi_gian_ket_thuc + ':00' } }, 201); }
   if (p === '/nhan-su/ca-lam-viec') return json(route, { ok: true, data: caDs });
   if (p === '/nhan-su/ca-lam-viec/1' && pt === 'DELETE') return json(route, { ok: false, loi: 'CA_DA_CO_PHAN_CONG', thong_bao: 'Ca đã có phân công, không thể xóa' }, 409);
@@ -320,7 +334,75 @@ await trang.getByRole('button', { name: 'Xóa ca' }).click();
 await trang.getByRole('dialog').getByRole('button', { name: 'Xóa' }).click();
 await trang.getByText('Ca đã có phân công, không thể xóa').waitFor();
 kiemTra(true, 'xóa ca đã có phân công: hiện thông báo 409');
-await trang.getByRole('link', { name: 'Sản phẩm' }).click();
+// ---- Báo cáo ----
+await trang.getByRole('link', { name: 'Báo cáo', exact: true }).first().click();
+await trang.waitForURL('**/bao-cao');
+await trang.locator('.chi-so').waitFor();
+await trang.getByText('Bán chạy nhất').waitFor();
+await trang.locator('.chi-so', { hasText: '5.500.000đ' }).waitFor(); // chờ dữ liệu giả tải xong
+const soNgayThang = Number(homNayStr.slice(8));
+kiemTra(bcReq['/bao-cao/doanh-thu']?.tu_ngay === homNayStr.slice(0, 8) + '01' && bcReq['/bao-cao/doanh-thu'].den_ngay === homNayStr && bcReq['/bao-cao/doanh-thu'].nhom === 'ngay', 'mặc định từ đầu tháng đến hôm nay, gom theo ngày');
+kiemTra((await trang.locator('.chi-so').innerText()).includes('5.500.000đ') && (await trang.locator('.chi-so').innerText()).includes('46'), 'dải số liệu: doanh thu 5.500.000đ, 46 đơn');
+kiemTra((await trang.locator('.chi-so').innerText()).includes('119.565đ'), 'trung bình mỗi đơn 119.565đ');
+kiemTra(await trang.locator('.bd-khung svg rect[fill="transparent"]').count() === soNgayThang, `biểu đồ có đủ ${soNgayThang} cột ngày (kỳ không có đơn điền 0)`);
+await trang.locator('.bd-khung svg rect[fill="transparent"]').last().focus();
+await trang.locator('.bd-tip').waitFor();
+kiemTra((await trang.locator('.bd-tip').innerText()).includes('chưa hết') && (await trang.locator('.bd-tip').innerText()).includes('1.750.000đ'), 'rê/focus cột hôm nay: chú giải ghi "chưa hết" và doanh thu');
+kiemTra(await trang.locator('.bd-khung svg path[fill-opacity="0.45"]').count() === 1, 'chỉ cột hôm nay được vẽ nhạt');
+await trang.screenshot({ path: RA + '14-bao-cao.png' });
+await trang.getByRole('button', { name: 'Bảng', exact: true }).click();
+kiemTra(await trang.getByRole('table', { name: 'Doanh thu theo kỳ' }).locator('tbody tr').count() === soNgayThang && await trang.getByText('Trung bình mỗi đơn').count() >= 2, 'chuyển sang Bảng: đủ dòng và có cột trung bình mỗi đơn');
+await trang.getByRole('button', { name: 'Biểu đồ', exact: true }).click();
+kiemTra(await trang.getByRole('table', { name: 'Top 5 sản phẩm bán chạy' }).locator('tbody tr').count() === 5 && bcReq['/bao-cao/san-pham-ban-chay'].top === '5', 'khung Bán chạy nhất lấy top 5 cùng khoảng ngày');
+// bộ lọc
+await trang.locator('#bc-tu').fill('2026-10-01'); await trang.locator('#bc-den').fill('2026-09-01');
+kiemTra(await trang.getByText('“Từ ngày” đang sau “Đến ngày”').count() === 1 && await trang.getByRole('button', { name: 'Xem báo cáo' }).isDisabled(), 'từ ngày sau đến ngày: báo lỗi và khóa nút');
+await trang.locator('#bc-den').fill(homNayStr); await trang.locator('#bc-tu').fill('2026-10-05');
+await trang.getByLabel('Tuần', { exact: true }).check();
+await trang.getByRole('button', { name: 'Xem báo cáo' }).click();
+await trang.waitForTimeout(400);
+kiemTra(bcReq['/bao-cao/doanh-thu'].tu_ngay === '2026-10-05' && bcReq['/bao-cao/doanh-thu'].nhom === 'tuan', 'bấm Xem báo cáo: gửi khoảng ngày mới và nhom=tuan');
+kiemTra(await trang.getByRole('heading', { name: 'Doanh thu theo tuần' }).count() === 1, 'tiêu đề đổi theo tuần');
+// các tab
+await trang.getByRole('link', { name: 'Xem tất cả sản phẩm' }).click();
+await trang.waitForURL('**/bao-cao/san-pham');
+await trang.locator('.hbar li').first().waitFor();
+kiemTra(await trang.locator('.hbar li').count() === 6 && bcReq['/bao-cao/san-pham-ban-chay'].top === '10' && bcReq['/bao-cao/san-pham-ban-chay'].tu_ngay === '2026-10-05', 'tab Sản phẩm bán chạy: 6 thanh, top 10, giữ khoảng ngày đã chọn');
+kiemTra((await trang.locator('.hbar li').first().innerText()).includes('168 ly'), 'thanh đầu ghi số ly ở đầu thanh');
+await trang.getByRole('link', { name: 'Theo danh mục' }).click();
+await trang.locator('.hbar li').first().waitFor();
+kiemTra((await trang.locator('.hbar li').first().innerText()).includes('60%') && await trang.locator('.hbar li').count() === 3, 'tab Danh mục: 3 thanh, Cà phê 60%');
+await trang.screenshot({ path: RA + '15-bao-cao-danh-muc.png' });
+await trang.getByRole('link', { name: 'Phương thức thanh toán' }).click();
+await trang.locator('.hbar li').first().waitFor();
+kiemTra((await trang.locator('.hbar').innerText()).includes('Chuyển khoản') && (await trang.locator('.hbar').innerText()).includes('30%'), 'tab Phương thức: có Chuyển khoản, tiền mặt 60% / chuyển khoản 30%');
+await trang.getByRole('link', { name: 'Chi phí nhập và doanh thu' }).click();
+await trang.locator('.bd-chu-giai').waitFor();
+await trang.locator('.chi-so', { hasText: /nhiều hơn/ }).waitFor();
+kiemTra(await trang.locator('.bd-chu-giai li').count() === 2 && bcReq['/bao-cao/chi-phi-vs-doanh-thu'].nhom === 'tuan', 'tab Chi phí: chú giải 2 chuỗi, giữ cách gom theo tuần');
+kiemTra((await trang.locator('.chi-so').innerText()).includes('Chi nhiều hơn thu') || (await trang.locator('.chi-so').innerText()).includes('Thu nhiều hơn chi'), 'tab Chi phí: dải số liệu nói rõ thu hay chi nhiều hơn');
+await trang.getByRole('button', { name: 'Bảng', exact: true }).click();
+kiemTra((await trang.getByRole('table', { name: 'Chi phí nhập và doanh thu theo kỳ' }).innerText()).includes('−'), 'bảng chi phí có chênh lệch âm hiện dấu trừ');
+await trang.getByRole('button', { name: 'Biểu đồ', exact: true }).click();
+await trang.screenshot({ path: RA + '16-bao-cao-chi-phi.png' });
+await trang.getByRole('link', { name: 'Theo nhân viên' }).click();
+await trang.locator('.hbar li').first().waitFor();
+kiemTra((await trang.locator('.hbar li').first().innerText()).includes('Phạm Văn Nhân Viên'), 'tab Nhân viên: người doanh thu cao nhất đứng đầu');
+// không có dữ liệu
+await trang.locator('#bc-tu').fill('2000-01-01'); await trang.locator('#bc-den').fill('2000-01-01');
+await trang.getByRole('button', { name: 'Xem báo cáo' }).click();
+await trang.getByText(/Chưa có hóa đơn đã thanh toán trong khoảng này/).waitFor();
+kiemTra(true, 'khoảng không có dữ liệu: hiện thông báo rỗng, không vẽ biểu đồ trống');
+await trang.setViewportSize({ width: 390, height: 900 });
+await trang.getByRole('link', { name: 'Doanh thu', exact: true }).click();
+await trang.locator('#bc-tu').fill(homNayStr.slice(0, 8) + '01'); await trang.locator('#bc-den').fill(homNayStr);
+await trang.getByRole('button', { name: 'Xem báo cáo' }).click();
+await trang.locator('.bd-khung svg').waitFor();
+await trang.waitForTimeout(400);
+await trang.screenshot({ path: RA + '17-bao-cao-di-dong.png', fullPage: true });
+kiemTra(await trang.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'điện thoại: trang Báo cáo không bị cuộn ngang');
+await trang.setViewportSize({ width: 1360, height: 900 });
+await trang.getByRole('link', { name: 'Sản phẩm', exact: true }).click();
 await trang.setViewportSize({ width: 390, height: 800 });
 await trang.waitForTimeout(500); // chờ hiệu ứng trượt của menu
 await trang.screenshot({ path: RA + '3-di-dong.png' });

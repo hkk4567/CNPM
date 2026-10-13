@@ -36,3 +36,46 @@ const chuoiNgay = d => `${d.getFullYear()}-${hai(d.getMonth() + 1)}-${hai(d.getD
 export const congNgay = (s, n) => { const d = dungNgay(s); d.setDate(d.getDate() + n); return chuoiNgay(d); };
 export const thuHaiCua = s => { const d = dungNgay(s); return congNgay(s, -((d.getDay() + 6) % 7)); }; // thứ Hai của tuần chứa ngày s
 export const ngayNganGon = s => { const [, m, d] = s.split('-'); return `${d}/${m}`; }; // "2026-10-13" -> "13/10"
+
+// ---- Báo cáo ----
+const so1 = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
+const so2 = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 });
+// Tiền gọn cho trục và nhãn: 0 / 500k / 1,5 tr / 2,3 tỷ
+export const tienGon = (n, soLe = 1) => {
+  const f = soLe === 2 ? so2 : so1; const a = Math.abs(n);
+  if (a >= 1e9) return `${f.format(n / 1e9)} tỷ`;
+  if (a >= 1e6) return `${f.format(n / 1e6)} tr`;
+  if (a >= 1e3) return `${f.format(n / 1e3)}k`;
+  return f.format(n);
+};
+export const phanTram = n => `${so2.format(n)}%`;
+export const dauTien = n => (n < 0 ? `−${tien(-n)}` : tien(n)); // có dấu trừ rõ ràng cho chênh lệch âm
+export const dauThangNay = () => `${homNay().slice(0, 8)}01`;
+
+// Nhãn kỳ: ngày 'YYYY-MM-DD' -> 13/10; tuần (thứ Hai) -> 13/10; tháng 'YYYY-MM' -> 10/2026
+export const nhanKy = (ky, nhom) => (nhom === 'thang' ? `${ky.slice(5, 7)}/${ky.slice(0, 4)}` : ngayNganGon(ky));
+export const nhanKyDai = (ky, nhom) => (nhom === 'thang' ? `Tháng ${nhanKy(ky, nhom)}` : nhom === 'tuan' ? `Tuần ${ngayNganGon(ky)} – ${ngayNganGon(congNgay(ky, 6))}` : `${ngayNganGon(ky)}/${ky.slice(0, 4)}`);
+export const kyHienTai = nhom => (nhom === 'thang' ? homNay().slice(0, 7) : nhom === 'tuan' ? thuHaiCua(homNay()) : homNay());
+
+// Danh sách đủ các kỳ từ tu đến den (API chỉ trả kỳ có dữ liệu; điền kỳ trống = 0 để trục thời gian không bị khuyết). null nếu thiếu ngày hoặc quá dài.
+export const dayDuKy = (nhom, tu, den, toiDa = 120) => {
+  if (!tu || !den || tu > den) return null;
+  const ds = [];
+  if (nhom === 'thang') {
+    let [y, m] = tu.split('-').map(Number); const [y2, m2] = den.split('-').map(Number);
+    while (y < y2 || (y === y2 && m <= m2)) { ds.push(`${y}-${hai(m)}`); if (++m > 12) { m = 1; y++; } if (ds.length > toiDa) return null; }
+  } else {
+    let k = nhom === 'tuan' ? thuHaiCua(tu) : tu;
+    while (k <= den) { ds.push(k); k = congNgay(k, nhom === 'tuan' ? 7 : 1); if (ds.length > toiDa) return null; }
+  }
+  return ds;
+};
+// Trục số đẹp: trả { max, ticks } với bước 1/2/2.5/5 x 10^k
+export const tickDep = (max, soTick = 4) => {
+  if (!(max > 0)) return { max: 1, ticks: [0, 1] };
+  const tho = max / soTick; const m = 10 ** Math.floor(Math.log10(tho));
+  const b = [1, 2, 2.5, 5, 10].map(x => x * m).find(x => x >= tho);
+  const dinh = Math.ceil(max / b - 1e-9) * b; const ticks = [];
+  for (let i = 0; i * b <= dinh + 1e-9; i++) ticks.push(+(i * b).toFixed(6));
+  return { max: dinh, ticks };
+};
