@@ -28,6 +28,17 @@ const kmDs = [
   { ma_khuyen_mai: 1, ten_khuyen_mai: 'Giảm 10% cà phê', loai_giam: 'phan_tram', gia_tri_giam: '10.00', ngay_bat_dau: ngayTu(-1), ngay_ket_thuc: ngayTu(30), trang_thai: 'dang_chay', so_san_pham: 3, so_luot_dung: '12' },
 ];
 let kmPost = null;
+const cong = (t, n) => { const d = new Date(`${t}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+let caPost = null; let pcPost = null; let pcGo = null; let lichLoc = null; let nvPost = null; let nvPatch = null; let nvXoa = null;
+const nvDs = [
+  { ma_nhan_vien: 1, ho_ten: 'Lê Quản Trị', chuc_vu: 'Chủ quán', so_dien_thoai: '0900000001', trang_thai: 'dang_lam', ma_tai_khoan: 1, ten_dang_nhap: 'admin', quyen_truy_cap: 'admin' },
+  { ma_nhan_vien: 2, ho_ten: 'Trần Thị Quản Lý', chuc_vu: 'Quản lý', so_dien_thoai: '0900000002', trang_thai: 'dang_lam', ma_tai_khoan: 2, ten_dang_nhap: 'quanly', quyen_truy_cap: 'quan_ly' },
+  { ma_nhan_vien: 3, ho_ten: 'Phạm Văn Nhân Viên', chuc_vu: 'Pha chế', so_dien_thoai: null, trang_thai: 'dang_lam', ma_tai_khoan: 3, ten_dang_nhap: 'nhanvien', quyen_truy_cap: 'nhan_vien' },
+  { ma_nhan_vien: 4, ho_ten: 'Đỗ Thị Thu Ngân', chuc_vu: 'Thu ngân', so_dien_thoai: '0900000004', trang_thai: 'dang_lam', ma_tai_khoan: null, ten_dang_nhap: null, quyen_truy_cap: null },
+];
+const caDs = [{ ma_ca: 1, ten_ca: 'Ca sáng', thoi_gian_bat_dau: '06:00:00', thoi_gian_ket_thuc: '12:00:00', so_phan_cong: 4 }, { ma_ca: 2, ten_ca: 'Ca chiều', thoi_gian_bat_dau: '12:00:00', thoi_gian_ket_thuc: '18:00:00', so_phan_cong: 0 }];
+let khPost = null; let khPatch = null; let khLoc = null;
+const khDs = [{ ma_khach_hang: 1, ten_khach_hang: 'Nguyễn Văn An', so_dien_thoai: '0901111111', diem_tich_luy: 18 }, { ma_khach_hang: 2, ten_khach_hang: 'Trần Thị Bích', so_dien_thoai: '0902222222', diem_tich_luy: 41 }];
 const nguoi = { ma_tai_khoan: 1, ma_nhan_vien: 2, ho_ten: 'Trần Thị Quản Lý', quyen_truy_cap: 'quan_ly' };
 const json = (route, body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -68,6 +79,26 @@ await trang.route('**/api/**', route => {
   if (p === '/khuyen-mai/1' && pt === 'GET') return json(route, { ok: true, data: { ...kmDs[2], san_pham: sp.slice(0, 3) } });
   if (p === '/khuyen-mai/1/bao-cao') return json(route, { ok: true, data: { so_hoa_don: 9, so_luong_ban: 12, tong_tien_giam: 34800, doanh_thu_sau_giam: 313200 } });
   if (p === '/khuyen-mai/1' && pt === 'DELETE') return json(route, { ok: false, loi: 'KHUYEN_MAI_DA_DUOC_DUNG', thong_bao: 'Khuyến mãi đã được áp trong hóa đơn nên không xóa được; hãy đặt ngay_ket_thuc về thời điểm hiện tại để ngừng áp dụng' }, 409);
+  if (p === '/nhan-su/ca-lam-viec' && pt === 'POST') { caPost = JSON.parse(route.request().postData()); return json(route, { ok: true, data: { ma_ca: 3, ...caPost, thoi_gian_bat_dau: caPost.thoi_gian_bat_dau + ':00', thoi_gian_ket_thuc: caPost.thoi_gian_ket_thuc + ':00' } }, 201); }
+  if (p === '/nhan-su/ca-lam-viec') return json(route, { ok: true, data: caDs });
+  if (p === '/nhan-su/ca-lam-viec/1' && pt === 'DELETE') return json(route, { ok: false, loi: 'CA_DA_CO_PHAN_CONG', thong_bao: 'Ca đã có phân công, không thể xóa' }, 409);
+  if (p === '/nhan-su/phan-cong' && pt === 'POST') { pcPost = JSON.parse(route.request().postData()); return json(route, { ok: true, data: [] }, 201); }
+  if (p === '/nhan-su/phan-cong' && pt === 'DELETE') { pcGo = Object.fromEntries(u.searchParams); return json(route, { ok: true, data: { da_xoa: true } }); }
+  if (p === '/nhan-su/lich-tuan') { lichLoc = Object.fromEntries(u.searchParams); const t = u.searchParams.get('tu_ngay'); return json(route, { ok: true, tu_ngay: t, den_ngay: cong(t, 6), data: [{ ngay_lam: t, ma_ca: 1, ten_ca: 'Ca sáng', thoi_gian_bat_dau: '06:00:00', thoi_gian_ket_thuc: '12:00:00', ma_nhan_vien: 3, ho_ten: 'Phạm Văn Nhân Viên' }] }); }
+  if (p === '/nhan-su' && pt === 'POST') { nvPost = JSON.parse(route.request().postData()); return nvPost.ten_dang_nhap === 'trung' ? json(route, { ok: false, loi: 'TRUNG_TEN_DANG_NHAP', thong_bao: 'Tên đăng nhập đã tồn tại' }, 409) : json(route, { ok: true, data: { ma_nhan_vien: 9, ...nvPost, chuc_vu: nvPost.chuc_vu, trang_thai: 'dang_lam', ma_tai_khoan: 9 } }, 201); }
+  if (p === '/nhan-su') {
+    const q = (u.searchParams.get('tu_khoa') || '').toLowerCase(); const tt = u.searchParams.get('trang_thai'); const qu = u.searchParams.get('quyen_truy_cap');
+    const ds = nvDs.filter(n => (!q || n.ho_ten.toLowerCase().includes(q) || (n.ten_dang_nhap || '').includes(q)) && (!tt || n.trang_thai === tt) && (!qu || n.quyen_truy_cap === qu));
+    return json(route, { ok: true, data: ds, tong_so_ban_ghi: ds.length, trang: 1, moi_trang: 10 });
+  }
+  if (/^\/nhan-su\/\d+$/.test(p) && pt === 'PATCH') { nvPatch = JSON.parse(route.request().postData()); return json(route, { ok: true, data: { ...nvDs.find(n => `/nhan-su/${n.ma_nhan_vien}` === p), ...nvPatch } }); }
+  if (/^\/nhan-su\/\d+$/.test(p) && pt === 'DELETE') { nvXoa = p; return json(route, { ok: true, data: { da_xoa: false, trang_thai: 'nghi_viec' } }); }
+  if (p === '/khach-hang' && pt === 'POST') { khPost = JSON.parse(route.request().postData()); return khPost.so_dien_thoai === '0901111111' ? json(route, { ok: false, loi: 'TRUNG_SDT', thong_bao: 'Số điện thoại đã tồn tại' }, 409) : json(route, { ok: true, data: { ma_khach_hang: 9, ...khPost, diem_tich_luy: 0 } }, 201); }
+  if (p === '/khach-hang/top') return json(route, { ok: true, data: [{ ma_khach_hang: 2, ten: 'Trần Thị Bích', so_dien_thoai: '0902222222', so_don: 5, tong_chi_tieu: 410000 }, { ma_khach_hang: 1, ten: 'Nguyễn Văn An', so_dien_thoai: '0901111111', so_don: 3, tong_chi_tieu: 180000 }] });
+  if (/^\/khach-hang\/\d+\/lich-su$/.test(p) && p !== '/khach-hang/1/lich-su') return json(route, { ok: true, data: [], khach_hang: khDs[0], tong_chi_tieu: 0, tong_so_ban_ghi: 0, trang: 1, moi_trang: 5 });
+  if (p === '/khach-hang/1/lich-su') { khLoc = Object.fromEntries(u.searchParams); return json(route, { ok: true, data: [{ ma_hoa_don: 11, so_thu_tu: 3, thoi_gian_tao: ngayTu(-2), thoi_gian_thanh_toan: ngayTu(-2), phuong_thuc_thanh_toan: 'chuyen_khoan', tong_tien_hang: 70000, tong_giam_gia: 5000, tong_tien: 65000, diem_cong: 6 }], khach_hang: khDs[0], tong_chi_tieu: 180000, tong_so_ban_ghi: 3, trang: 1, moi_trang: 5 }); }
+  if (p === '/khach-hang/1' && pt === 'PATCH') { khPatch = JSON.parse(route.request().postData()); return json(route, { ok: true, data: { ...khDs[0], ...khPatch } }); }
+  if (p === '/khach-hang') { const q = (u.searchParams.get('tu_khoa') || '').toLowerCase(); return json(route, { ok: true, data: khDs.filter(k => k.ten_khach_hang.toLowerCase().includes(q) || k.so_dien_thoai.includes(q)) }); }
   return json(route, { ok: false, loi: 'KHONG_TIM_THAY', thong_bao: `chưa giả lập ${pt} ${p}` }, 404);
 });
 
@@ -151,6 +182,144 @@ await trang.getByLabel('Bạc xỉu').check();
 await trang.getByRole('button', { name: 'Tạo khuyến mãi' }).click();
 await trang.getByText('Đã tạo khuyến mãi').waitFor();
 kiemTra(kmPost?.loai_giam === 'phan_tram' && kmPost.gia_tri_giam === 15 && kmPost.ma_san_pham?.[0] === 3 && /Z$/.test(kmPost.ngay_bat_dau), 'gửi đúng nội dung khuyến mãi (có ngày giờ ISO)');
+// ---- Khách hàng ----
+await trang.getByRole('link', { name: 'Khách hàng' }).first().click();
+await trang.waitForURL('**/khach-hang');
+kiemTra(await trang.getByText('Nhập tên hoặc số điện thoại để tìm khách').count() === 1, 'chưa nhập từ khóa: hiện hướng dẫn tìm');
+await trang.getByLabel('Tìm khách theo tên hoặc số điện thoại').fill('0902');
+await trang.locator('tbody tr', { hasText: 'Trần Thị Bích' }).waitFor();
+kiemTra(await trang.locator('tbody tr').count() === 1, 'tìm theo SĐT ra 1 khách');
+await trang.getByLabel('Tìm khách theo tên hoặc số điện thoại').fill('nguyễn');
+await trang.locator('tbody tr', { hasText: 'Nguyễn Văn An' }).click();
+await trang.getByRole('complementary', { name: 'Sửa khách hàng' }).waitFor();
+await trang.getByText('Hóa đơn #3').waitFor();
+kiemTra(await trang.getByText('180.000đ').count() === 1 && await trang.getByText('+6 điểm').count() === 1, 'lịch sử mua hiện tổng chi tiêu và điểm cộng');
+await trang.getByLabel('Từ ngày').first().fill('2026-10-01');
+await trang.waitForTimeout(400);
+kiemTra(khLoc?.tu_ngay === '2026-10-01' && khLoc.trang === '1', 'lọc lịch sử theo ngày gửi tu_ngay, về trang 1');
+await trang.screenshot({ path: RA + '8-khach-hang.png' });
+await trang.getByLabel('Tên khách hàng').fill('Nguyễn Văn Anh');
+await trang.getByRole('button', { name: 'Lưu thay đổi' }).click();
+await trang.getByText('Đã lưu thay đổi').waitFor();
+kiemTra(khPatch?.ten_khach_hang === 'Nguyễn Văn Anh' && khPatch.so_dien_thoai === '0901111111' && !('diem_tich_luy' in khPatch), 'sửa khách chỉ gửi tên và SĐT, không gửi điểm');
+await trang.getByRole('button', { name: 'Thêm khách hàng' }).first().click();
+await trang.getByRole('button', { name: 'Thêm khách hàng' }).last().click();
+kiemTra(await trang.getByText('Nhập tên khách hàng').count() === 1 && await trang.getByText('Số điện thoại gồm 10 chữ số').count() === 1, 'thêm khách trống báo lỗi tên và SĐT');
+await trang.getByLabel('Tên khách hàng').fill('Lê Văn C'); await trang.locator('#kh-sdt').fill('0901111111');
+await trang.getByRole('button', { name: 'Thêm khách hàng' }).last().click();
+await trang.getByText('Số điện thoại này đã có khách hàng khác').waitFor();
+kiemTra(true, 'SĐT trùng (409) báo lỗi ngay ở ô SĐT');
+await trang.locator('#kh-sdt').fill('0903333333');
+await trang.getByRole('button', { name: 'Thêm khách hàng' }).last().click();
+await trang.getByText('Đã thêm khách hàng').waitFor();
+kiemTra(khPost?.ten_khach_hang === 'Lê Văn C' && khPost.so_dien_thoai === '0903333333', 'gửi đúng nội dung khách mới');
+await trang.getByRole('link', { name: 'Khách thân thiết' }).click();
+await trang.locator('tbody tr', { hasText: 'Trần Thị Bích' }).waitFor();
+kiemTra((await trang.locator('tbody tr').first().innerText()).includes('410.000đ'), 'khách thân thiết: hạng 1 là Bích 410.000đ');
+await trang.screenshot({ path: RA + '9-khach-than-thiet.png' });
+// ---- Nhân sự ----
+const homNayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+const ngNgan = t => `${t.slice(8)}/${t.slice(5, 7)}`;
+await trang.getByRole('link', { name: 'Nhân viên', exact: true }).click();
+await trang.waitForURL('**/nhan-vien');
+await trang.locator('tbody tr').first().waitFor();
+kiemTra(await trang.locator('tbody tr').count() === 4, 'nhân viên có 4 dòng');
+kiemTra(await trang.getByRole('button', { name: 'Thêm nhân viên' }).count() === 0, 'quản lý không thấy nút Thêm nhân viên');
+await trang.locator('tbody tr', { hasText: 'Lê Quản Trị' }).click();
+await trang.getByText('Quản lý không sửa được thông tin của tài khoản admin').waitFor();
+kiemTra(await trang.getByRole('button', { name: 'Lưu thay đổi' }).count() === 0, 'quản lý xem admin: form bị khóa, không có nút lưu');
+await trang.locator('tbody tr', { hasText: 'Phạm Văn' }).click();
+await trang.locator('#nv-sdt').fill('0912345678');
+await trang.getByRole('button', { name: 'Lưu thay đổi' }).click();
+await trang.getByText('Đã lưu thay đổi').last().waitFor();
+kiemTra(nvPatch?.so_dien_thoai === '0912345678' && nvPatch.ho_ten === 'Phạm Văn Nhân Viên' && !('quyen_truy_cap' in nvPatch) && !('mat_khau' in nvPatch), 'quản lý sửa nhân viên: chỉ gửi họ tên, chức vụ, SĐT');
+await trang.screenshot({ path: RA + '10-nhan-vien.png' });
+// chuyển sang admin
+nguoi.quyen_truy_cap = 'admin'; nguoi.ma_nhan_vien = 1; await trang.reload();
+await trang.getByRole('button', { name: 'Thêm nhân viên' }).waitFor();
+await trang.getByRole('button', { name: 'Thêm nhân viên' }).click();
+await trang.getByRole('button', { name: 'Thêm nhân viên' }).last().click();
+kiemTra(await trang.getByText('Nhập họ tên').count() === 1 && await trang.getByText('Tên đăng nhập 3–50 ký tự').count() === 1, 'thêm nhân viên trống báo lỗi họ tên và tên đăng nhập');
+await trang.locator('#nv-ten').fill('Vũ Thị Mới'); await trang.locator('#nv-cv').fill('Phục vụ'); await trang.locator('#nv-dn').fill('trung'); await trang.locator('#nv-mk').fill('abcdefgh');
+await trang.getByRole('button', { name: 'Thêm nhân viên' }).last().click();
+kiemTra(await trang.getByText('Mật khẩu cần ít nhất một chữ cái và một chữ số').count() === 1, 'mật khẩu thiếu chữ số bị chặn ở client');
+await trang.locator('#nv-mk').fill('abcd1234');
+await trang.getByRole('button', { name: 'Thêm nhân viên' }).last().click();
+await trang.getByText('Tên đăng nhập này đã có người dùng').waitFor();
+kiemTra(true, 'tên đăng nhập trùng (409) báo ngay ở ô tên đăng nhập');
+await trang.locator('#nv-dn').fill('vumoi');
+await trang.getByRole('button', { name: 'Thêm nhân viên' }).last().click();
+await trang.getByText('Đã thêm nhân viên').waitFor();
+kiemTra(nvPost?.ten_dang_nhap === 'vumoi' && nvPost.mat_khau === 'abcd1234' && nvPost.quyen_truy_cap === 'nhan_vien' && !('so_dien_thoai' in nvPost), 'gửi đúng nội dung nhân viên mới (SĐT bỏ trống thì không gửi)');
+await trang.locator('tbody tr', { hasText: 'Trần Thị Quản Lý' }).click();
+kiemTra(await trang.getByText('Bạn không thể tự xóa hoặc cho chính mình nghỉ việc').count() === 0, 'admin (mã 1) chọn quản lý: có nút xóa');
+await trang.locator('tbody tr', { hasText: 'Phạm Văn' }).click();
+await trang.getByRole('button', { name: 'Xóa hoặc cho nghỉ việc' }).click();
+await trang.getByRole('dialog').getByRole('button', { name: 'Xác nhận' }).click();
+await trang.getByText('Nhân viên đã có lịch sử nên được chuyển sang nghỉ việc').waitFor();
+kiemTra(nvXoa === '/nhan-su/3', 'xóa nhân viên đã có lịch sử: báo đã chuyển sang nghỉ việc');
+// ---- Tài khoản và quyền ----
+await trang.getByRole('link', { name: 'Tài khoản và quyền' }).click();
+await trang.waitForURL('**/tai-khoan');
+await trang.locator('tbody tr').first().waitFor();
+await trang.locator('tbody tr', { hasText: 'nhanvien' }).click();
+await trang.getByRole('complementary', { name: 'Sửa tài khoản' }).waitFor();
+kiemTra(await trang.getByRole('button', { name: 'Lưu quyền' }).isDisabled(), 'chưa đổi quyền thì nút Lưu quyền bị khóa');
+await trang.getByRole('radio', { name: 'Quản lý' }).check();
+await trang.getByRole('button', { name: 'Lưu quyền' }).click();
+await trang.getByText('Đã đổi quyền').waitFor();
+kiemTra(nvPatch?.quyen_truy_cap === 'quan_ly' && Object.keys(nvPatch).length === 1, 'đổi quyền chỉ gửi quyen_truy_cap');
+await trang.locator('#tk-mk').fill('12345678');
+await trang.getByRole('button', { name: 'Đặt lại mật khẩu' }).click();
+kiemTra(await trang.getByText('Mật khẩu cần ít nhất một chữ cái và một chữ số').count() === 1, 'đặt lại mật khẩu yếu bị chặn');
+await trang.locator('#tk-mk').fill('matkhau123');
+await trang.getByRole('button', { name: 'Đặt lại mật khẩu' }).click();
+await trang.getByText('Đã đặt lại mật khẩu').waitFor();
+kiemTra(nvPatch?.mat_khau === 'matkhau123' && Object.keys(nvPatch).length === 1, 'đặt lại mật khẩu chỉ gửi mat_khau');
+await trang.screenshot({ path: RA + '11-tai-khoan.png' });
+// ---- Lịch làm việc ----
+await trang.getByRole('link', { name: 'Lịch làm việc' }).click();
+await trang.waitForURL('**/lich-lam-viec');
+await trang.locator('.the-nv').first().waitFor();
+kiemTra(await trang.locator('table.lich tbody tr').count() === 2, 'lịch tuần có 2 hàng ca');
+kiemTra(lichLoc?.tu_ngay && new Date(`${lichLoc.tu_ngay}T12:00:00Z`).getUTCDay() === 1, 'gửi tu_ngay là thứ Hai');
+const tuan1 = lichLoc.tu_ngay;
+await trang.getByRole('button', { name: 'Tuần sau' }).click();
+await trang.waitForTimeout(300);
+kiemTra(lichLoc.tu_ngay === cong(tuan1, 7), 'bấm Tuần sau gửi tu_ngay cộng 7 ngày');
+await trang.getByRole('button', { name: 'Tuần này' }).click();
+await trang.waitForTimeout(300);
+await trang.getByRole('button', { name: `Xếp người vào Ca sáng ngày ${ngNgan(homNayStr)}` }).click();
+await trang.getByRole('button', { name: 'Xếp lịch' }).last().click();
+kiemTra(await trang.locator('.loi-truong', { hasText: 'Chọn nhân viên' }).count() === 1, 'xếp lịch chưa chọn nhân viên báo lỗi');
+await trang.getByLabel('Nhân viên', { exact: true }).selectOption('3');
+await trang.getByLabel('Lặp lại').selectOption('2');
+kiemTra(await trang.getByText(/Sẽ xếp 2 ngày/).count() === 1, 'lặp 2 tuần từ ô hôm nay: 2 ngày');
+await trang.screenshot({ path: RA + '12-xep-lich.png' });
+await trang.getByRole('button', { name: 'Xếp lịch' }).last().click();
+await trang.getByText('Đã xếp 2 ngày').waitFor();
+kiemTra(pcPost?.ma_nhan_vien === 3 && pcPost.ma_ca === 1 && pcPost.ngay_lam[0] === homNayStr && pcPost.ngay_lam[1] === cong(homNayStr, 7), 'gửi đúng nhân viên, ca, 2 ngày cách nhau 7 ngày');
+await trang.getByRole('button', { name: /^Gỡ Phạm Văn Nhân Viên khỏi Ca sáng/ }).first().click();
+await trang.getByRole('dialog').getByRole('button', { name: 'Gỡ' }).click();
+await trang.getByText('Đã gỡ khỏi ca').waitFor();
+kiemTra(pcGo?.ma_nhan_vien === '3' && pcGo.ma_ca === '1' && /^\d{4}-\d{2}-\d{2}$/.test(pcGo.ngay_lam), 'gỡ phân công gửi đủ nhân viên, ca, ngày qua query');
+await trang.screenshot({ path: RA + '13-lich-tuan.png' });
+await trang.getByRole('link', { name: 'Ca làm việc' }).click();
+await trang.locator('tbody tr', { hasText: 'Ca chiều' }).waitFor();
+kiemTra(await trang.locator('tbody tr').count() === 2, 'tab ca có 2 ca');
+await trang.getByRole('button', { name: 'Thêm ca' }).first().click();
+await trang.locator('#ca-ten').fill('Ca đêm'); await trang.locator('#ca-bd').fill('20:00'); await trang.locator('#ca-kt').fill('18:00');
+await trang.getByRole('button', { name: 'Thêm ca' }).last().click();
+kiemTra(await trang.getByText(/Giờ kết thúc phải sau giờ bắt đầu/).count() === 1, 'ca có giờ kết thúc trước giờ bắt đầu bị chặn');
+await trang.locator('#ca-kt').fill('23:00');
+await trang.getByRole('button', { name: 'Thêm ca' }).last().click();
+await trang.getByText('Đã thêm ca').waitFor();
+kiemTra(caPost?.thoi_gian_bat_dau === '20:00' && caPost.thoi_gian_ket_thuc === '23:00', 'gửi đúng giờ ca dạng HH:mm');
+await trang.locator('tbody tr', { hasText: 'Ca sáng' }).click();
+await trang.getByRole('button', { name: 'Xóa ca' }).click();
+await trang.getByRole('dialog').getByRole('button', { name: 'Xóa' }).click();
+await trang.getByText('Ca đã có phân công, không thể xóa').waitFor();
+kiemTra(true, 'xóa ca đã có phân công: hiện thông báo 409');
 await trang.getByRole('link', { name: 'Sản phẩm' }).click();
 await trang.setViewportSize({ width: 390, height: 800 });
 await trang.waitForTimeout(500); // chờ hiệu ứng trượt của menu

@@ -6,6 +6,10 @@ import DangNhap from '../pages/auth/index.jsx';
 import SanPham from '../pages/san-pham/index.jsx';
 import Kho from '../pages/kho/index.jsx';
 import KhuyenMai from '../pages/khuyen-mai/index.jsx';
+import KhachHang from '../pages/khach-hang/index.jsx';
+import LichLamViec from '../pages/nhan-su/LichLamViec.jsx';
+import NhanVien from '../pages/nhan-su/NhanVien.jsx';
+import TaiKhoan from '../pages/nhan-su/TaiKhoan.jsx';
 import ChuaLam from '../pages/chung/ChuaLam.jsx';
 import KhongCoQuyen from '../pages/chung/KhongCoQuyen.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -31,15 +35,15 @@ export default function AppRoutes() {
           <Route path="/khuyen-mai" element={<KhuyenMai />} />
           <Route path="/kho/:tab?" element={<Kho />} />
           <Route path="/nhap-hang" element={<Navigate to="/kho/lich-su-nhap" replace />} />
-          <Route path="/khach-hang" element={<ChuaLam ten="Khách hàng" ma="KH-01..05" />} />
-          <Route path="/lich-lam-viec" element={<ChuaLam ten="Lịch làm việc" ma="NS" />} />
-          <Route path="/nhan-vien" element={<ChuaLam ten="Nhân viên" ma="NS" />} />
+          <Route path="/khach-hang/:tab?" element={<KhachHang />} />
+          <Route path="/lich-lam-viec/:tab?" element={<LichLamViec />} />
+          <Route path="/nhan-vien" element={<NhanVien />} />
           <Route path="/bao-cao" element={<ChuaLam ten="Báo cáo" ma="BC-01..06" />} />
         </Route>
       </Route>
       <Route element={<RequireRole quyen={['admin']} />}>
         <Route element={<MainLayout />}>
-          <Route path="/tai-khoan" element={<ChuaLam ten="Tài khoản và quyền" ma="NS" />} />
+          <Route path="/tai-khoan" element={<TaiKhoan />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
