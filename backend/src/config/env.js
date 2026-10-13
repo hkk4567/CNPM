@@ -13,7 +13,10 @@ function batBuoc(ten) {
 const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 3000),
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  // Nhiều địa chỉ cách nhau bằng dấu phẩy. Mặc định: web quản lý (Vite 5173) và app Expo chạy bản web (8081, 19006).
+  // App điện thoại thật không gửi Origin nên không bị CORS chặn.
+  corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:8081,http://localhost:19006')
+    .split(',').map((s) => s.trim()).filter(Boolean),
   db: {
     host: process.env.DB_HOST || '127.0.0.1',
     port: Number(process.env.DB_PORT || 3306),
