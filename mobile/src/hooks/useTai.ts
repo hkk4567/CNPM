@@ -29,5 +29,6 @@ export function useTai<T>(tai: () => Promise<T>, khoa: string) {
     duLieu, dangTai, dangLamMoi, loi,
     taiLai: () => { setDangTai(true); setLoi(null); setLan((n) => n + 1); },
     lamMoi: () => { setDangLamMoi(true); setLan((n) => n + 1); },
+    taiNgam: () => setLan((n) => n + 1), // tải lại không hiện vòng xoay (khi quay lại màn)
   };
 }

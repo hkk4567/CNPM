@@ -1,28 +1,8 @@
 // Kiểm thử giao diện app trên bản web (expo export --platform web) bằng playwright, API được giả lập.
 // Chạy: npm run build-web && node scripts/smoke-web.mjs   (cần playwright: npm i -D playwright, hoặc chạy từ thư mục có sẵn playwright)
-import http from 'node:http';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
-const require = createRequire(process.env.PW_DIR ? path.join(process.env.PW_DIR, 'x.js') : import.meta.url);
-const { chromium } = require('playwright');
+import { khoiDong, ok, loi, CORS } from './lib-smoke.mjs';
 
-const goc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const dist = path.join(goc, 'dist');
-const anh = path.join(goc, 'scripts', 'anh-smoke');
-fs.mkdirSync(anh, { recursive: true });
-const KIEU = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ttf': 'font/ttf', '.ico': 'image/x-icon' };
-
-const maychu = http.createServer((req, res) => {
-  let f = path.join(dist, decodeURIComponent(req.url.split('?')[0]));
-  if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) f = path.join(dist, 'index.html');
-  res.writeHead(200, { 'Content-Type': KIEU[path.extname(f)] || 'application/octet-stream' });
-  fs.createReadStream(f).pipe(res);
-}).listen(4174);
-
-let dat = 0, hong = 0;
-const kiem = (ten, ok, them = '') => { ok ? dat++ : hong++; console.log(`${ok ? 'OK  ' : 'FAIL'} ${ten}${ok ? '' : ' ' + them}`); };
+const { trang, kiem, chup, gia, ketThuc, URL_APP } = await khoiDong({ cong: 4174 });
 
 const hai = (n) => String(n).padStart(2, '0');
 const chuoi = (d) => `${d.getFullYear()}-${hai(d.getMonth() + 1)}-${hai(d.getDate())}`;
@@ -32,15 +12,6 @@ const cong = (s, n) => { const [y, m, d] = s.split('-').map(Number); const x = n
 const NV = { ma_tai_khoan: 5, ma_nhan_vien: 7, ho_ten: 'Nguyễn Văn An', quyen_truy_cap: 'nhan_vien' };
 let matKhauHienTai = 'matkhau1';
 let hetPhien = false;
-const ok = (data, them = {}) => ({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, data, ...them }) });
-const loi = (status, ma, tb) => ({ status, contentType: 'application/json', body: JSON.stringify({ ok: false, loi: ma, thong_bao: tb }) });
-const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
-
-const trinhDuyet = await chromium.launch();
-const ctx = await trinhDuyet.newContext({ viewport: { width: 390, height: 800 }, deviceScaleFactor: 2 });
-const trang = await ctx.newPage();
-const loiTrang = [];
-trang.on('pageerror', (e) => loiTrang.push(e.message));
 
 const yeuCauLich = [];
 await trang.route('**/api/**', async (route) => {
@@ -55,6 +26,7 @@ await trang.route('**/api/**', async (route) => {
   if (hetPhien) return tra(loi(401, 'TOKEN_HET_HAN', 'Phiên đã hết hạn'));
   if (rq.headers()['authorization'] !== 'Bearer tok-an') return tra(loi(401, 'CHUA_DANG_NHAP', 'Chưa đăng nhập'));
   if (p === '/auth/toi') return tra(ok(NV));
+  if (p === '/san-pham/menu') return tra(ok([]));
   if (p === '/auth/doi-mat-khau') {
     const b = JSON.parse(rq.postData() || '{}');
     if (b.mat_khau_cu !== matKhauHienTai) return tra(loi(400, 'SAI_MAT_KHAU_CU', 'Mật khẩu cũ không đúng'));
@@ -73,8 +45,6 @@ await trang.route('**/api/**', async (route) => {
   return tra(loi(404, 'KHONG_TIM_THAY', 'Không có API này'));
 });
 
-const URL_APP = 'http://localhost:4174';
-const chup = (ten) => trang.screenshot({ path: path.join(anh, `${ten}.png`) });
 try {
   // 1. Chưa đăng nhập -> màn đăng nhập
   await trang.goto(URL_APP);
@@ -99,6 +69,9 @@ try {
   // 4. Đăng nhập đúng -> lịch tuần này
   await trang.getByLabel('Mật khẩu', { exact: true }).fill('matkhau1');
   await trang.getByRole('button', { name: 'Đăng nhập' }).click();
+  await trang.getByText('Menu đang trống').waitFor();
+  kiem('đăng nhập xong mở tab Gọi món đầu tiên', true);
+  await trang.getByRole('tab', { name: /Lịch làm việc/ }).click();
   await trang.getByText('Lịch làm việc của tôi').waitFor();
   await trang.getByText('Tuần này bạn có 2 ca').waitFor();
   kiem('đăng nhập đúng -> lịch tuần này, tổng 2 ca', true);
@@ -176,6 +149,7 @@ try {
   await trang.getByLabel('Tên đăng nhập').fill('an');
   await trang.getByLabel('Mật khẩu', { exact: true }).fill('matkhau2');
   await trang.getByRole('button', { name: 'Đăng nhập' }).click();
+  await trang.getByRole('tab', { name: /Lịch làm việc/ }).click();
   await trang.getByText('Lịch làm việc của tôi').waitFor();
   hetPhien = true;
   await trang.getByRole('button', { name: 'Tuần sau' }).click();
@@ -201,11 +175,8 @@ try {
   kiem('địa chỉ "192.168.1.10:3000" -> http://192.168.1.10:3000/api', true);
   kiem('địa chỉ được lưu', (await trang.evaluate(() => localStorage.getItem('api_url'))) === 'http://192.168.1.10:3000/api');
 
-  kiem('không có lỗi JS trong trang', loiTrang.length === 0, loiTrang.join(' | '));
-} catch (e) {
+  } catch (e) {
   kiem('chạy hết kịch bản', false, e.message.split('\n')[0]);
   await chup('loi-cuoi').catch(() => {});
 }
-console.log(`\n${dat}/${dat + hong} đạt`);
-await trinhDuyet.close(); maychu.close();
-process.exit(hong ? 1 : 0);
+await ketThuc();

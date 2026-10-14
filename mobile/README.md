@@ -1,22 +1,25 @@
 # App điện thoại cho nhân viên (Expo / React Native)
 
 Đợt 1: đăng nhập, **Lịch làm việc của tôi** (NS-07), **Cá nhân** (đổi mật khẩu AUTH-02, đăng xuất).
-Các đợt sau: Gọi món, Thanh toán + hóa đơn, Tạo nhanh khách hàng.
+Đợt 2: **Gọi món** (POS-01 menu, POS-02 tạo order, POS-03/04/05 thêm/sửa/xóa món, POS-06 gắn khách, POS-07 đã phục vụ, POS-09 hủy, POS-10 danh sách order hôm nay, POS-11 chi tiết order).
+Các đợt sau: Thanh toán (POS-08) + xem hóa đơn, Tạo nhanh khách hàng.
 
 ## Cấu trúc
 ```
 mobile/
 ├─ app.json, package.json, tsconfig.json, eslint.config.js, .env.example
-├─ scripts/smoke-web.mjs        # kiểm thử giao diện (playwright, API giả) + anh-smoke/*.png
+├─ scripts/{lib-smoke,smoke-web,smoke-goi-mon}.mjs   # kiểm thử giao diện (playwright, API giả) + anh-smoke/*.png
 └─ src/
    ├─ app/                      # Expo Router: mỗi file là một màn
    │  ├─ _layout.tsx            # font, PhienProvider, Stack.Protected (chưa đăng nhập -> dang-nhap)
    │  ├─ dang-nhap.tsx          # AUTH-01 + ô "Máy chủ" (đổi địa chỉ backend)
    │  ├─ doi-mat-khau.tsx       # AUTH-02 (modal)
-   │  └─ (tabs)/{_layout,index,toi}.tsx   # tab Lịch làm việc, tab Cá nhân
-   ├─ api/{cau-hinh,http,auth,nhan-su}.ts # gọi backend, cùng dạng {ok,data} với web
-   ├─ context/Phien.tsx         # phiên đăng nhập, token trong SecureStore
-   ├─ hooks/useTai.ts, components/{ui,HopXacNhan}.tsx, utils/ngay.ts, theme.ts, storage.ts
+   │  ├─ gio-hang.tsx           # giỏ gọi món -> gửi order mới hoặc thêm vào order đang mở
+   │  ├─ order/[ma].tsx         # chi tiết order: sửa/xóa món, gắn khách, đã phục vụ, hủy
+   │  └─ (tabs)/{_layout,index,order,lich,toi}.tsx   # 4 tab: Gọi món, Order, Lịch làm việc, Cá nhân
+   ├─ api/{cau-hinh,http,auth,nhan-su,menu,hoa-don}.ts # gọi backend, cùng dạng {ok,data} với web
+   ├─ context/{Phien,GioHang}.tsx  # phiên đăng nhập (token trong SecureStore); giỏ gọi món trong bộ nhớ
+   ├─ hooks/useTai.ts, components/{ui,HopXacNhan,HopHoiThoai}.tsx, utils/ngay.ts, theme.ts, storage.ts
 ```
 
 ## Chạy
@@ -30,7 +33,8 @@ mobile/
 
 ## Kiểm tra
 - `npm run kiem-tra` (tsc), `npm run lint`
-- `npm run build-web` rồi `npm run smoke-web` (cần playwright; nếu cài ở nơi khác: `PW_DIR=<thư mục có playwright> node scripts/smoke-web.mjs`).
+- `npm run build-web` rồi `npm run smoke-web` (đăng nhập, lịch, cá nhân) và `npm run smoke-goi-mon` (gọi món, order). Cần playwright; nếu cài ở nơi khác: `PW_DIR=<thư mục có playwright> node scripts/smoke-goi-mon.mjs`.
+- Chạy bản web của app (`npx expo start --web`, cổng 8081) cần backend cho phép CORS từ `http://localhost:8081`: `CORS_ORIGIN=http://localhost:5173,http://localhost:8081` trong backend/.env.
 
 ## Ghi chú
 - Mọi vai trò (admin/quản lý/nhân viên) đều đăng nhập được; lịch luôn xin theo `ma_nhan_vien` của chính người đăng nhập.

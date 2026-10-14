@@ -1,6 +1,6 @@
 // Bộ thành phần giao diện dùng chung (cùng bảng màu với web).
 import { useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { bo, CAO_NUT, font, mau } from '../theme';
 
@@ -62,6 +62,21 @@ export function TruongNhap({ nhan, loi, matKhau, ...p }: { nhan: string; loi?: s
   );
 }
 
+// Bộ đếm − n +: nút 44px; nhỏ nhất `min`, lớn nhất `max`.
+export function BoDem({ gia_tri, min = 0, max = 99, onDoi, ten, thungRac }: { gia_tri: number; min?: number; max?: number; onDoi: (v: number) => void; ten: string; thungRac?: boolean }) {
+  return (
+    <View style={s.dem}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Giảm ${ten}`} disabled={gia_tri <= min} onPress={() => onDoi(gia_tri - 1)} style={[s.demNut, gia_tri <= min && { opacity: 0.35 }]}>
+        <Ionicons name={thungRac && gia_tri === 1 ? 'trash-outline' : 'remove'} size={20} color={mau.teal} />
+      </Pressable>
+      <Text accessibilityLabel={`Số lượng ${ten}`} style={s.demSo}>{gia_tri}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Tăng ${ten}`} disabled={gia_tri >= max} onPress={() => onDoi(gia_tri + 1)} style={[s.demNut, gia_tri >= max && { opacity: 0.35 }]}>
+        <Ionicons name="add" size={20} color={mau.teal} />
+      </Pressable>
+    </View>
+  );
+}
+
 export function The({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[s.the, style]}>{children}</View>;
 }
@@ -74,7 +89,10 @@ const s = StyleSheet.create({
   banner: { borderRadius: bo.nho, padding: 12, gap: 6 },
   thuLai: { alignSelf: 'flex-start', minHeight: 36, justifyContent: 'center' },
   o: { minHeight: CAO_NUT, flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: mau.lineInput, borderRadius: bo.nho, backgroundColor: mau.be, paddingLeft: 12 },
-  oChu: { flex: 1, fontFamily: font.thuong, fontSize: 16, color: mau.ink, paddingVertical: 10 },
+  oChu: { flex: 1, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null), fontFamily: font.thuong, fontSize: 16, color: mau.ink, paddingVertical: 10 },
   mat: { width: 48, height: CAO_NUT, alignItems: 'center', justifyContent: 'center' },
+  dem: { flexDirection: 'row', alignItems: 'center' },
+  demNut: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: mau.teal, alignItems: 'center', justifyContent: 'center', backgroundColor: mau.be },
+  demSo: { minWidth: 36, textAlign: 'center', fontFamily: font.dam, fontSize: 16, color: mau.ink },
   the: { backgroundColor: mau.be, borderRadius: bo.lon, borderWidth: 1, borderColor: mau.line, padding: 14 },
 });

@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, BeVietnamPro_400Regular, BeVietnamPro_500Medium, BeVietnamPro_600SemiBold, BeVietnamPro_700Bold } from '@expo-google-fonts/be-vietnam-pro';
 import { PhienProvider, usePhien } from '../context/Phien';
+import { GioHangProvider } from '../context/GioHang';
 import { mau } from '../theme';
 
 function DieuHuong() {
@@ -14,6 +15,8 @@ function DieuHuong() {
       <Stack.Protected guard={!!nguoiDung}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="doi-mat-khau" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="gio-hang" />
+        <Stack.Screen name="order/[ma]" />
       </Stack.Protected>
       <Stack.Protected guard={!nguoiDung}>
         <Stack.Screen name="dang-nhap" />
@@ -28,7 +31,7 @@ export default function GocLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      <PhienProvider><DieuHuong /></PhienProvider>
+      <PhienProvider><GioHangProvider><DieuHuong /></GioHangProvider></PhienProvider>
     </SafeAreaProvider>
   );
 }
