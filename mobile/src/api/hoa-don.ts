@@ -1,4 +1,4 @@
-// POS-02..07, 09, 10, 11: order (hóa đơn). Thanh toán (POS-08) làm ở đợt sau.
+// POS-02..09, 10, 11: order (hóa đơn) và thanh toán.
 import { http } from './http';
 
 export type TrangThai = 'dang_pha_che' | 'da_phuc_vu' | 'da_thanh_toan' | 'huy';
@@ -40,3 +40,11 @@ export const daPhucVu = (ma: number) => http.patch<Order>(`/hoa-don/${ma}/trang-
 export const huyOrder = (ma: number, da_lam?: DaLam) => http.post<Order>(`/hoa-don/${ma}/huy`, da_lam && da_lam.length ? { da_lam } : {});
 export const ganKhach = (ma: number, so_dien_thoai: string) =>
   http.post<{ ma_khach_hang: number; ten_khach_hang: string; diem_tich_luy: number }>(`/hoa-don/${ma}/khach-hang`, { so_dien_thoai });
+
+// POS-08: thanh toán. Máy chủ chốt tiền từ các dòng, cộng điểm cho khách đang gắn (10.000đ = 1 điểm), không đụng kho.
+export type PhuongThuc = 'tien_mat' | 'chuyen_khoan' | 'vi';
+export const TEN_PHUONG_THUC: Record<PhuongThuc, string> = { tien_mat: 'Tiền mặt', chuyen_khoan: 'Chuyển khoản', vi: 'Ví điện tử' };
+export const DIEM_MOI_VND = 10000;
+export type KetQuaThanhToan = { hoa_don: Order; diem_cong: number; diem_hien_tai: number | null };
+export const thanhToan = (ma: number, phuong_thuc_thanh_toan: PhuongThuc) =>
+  http.post<KetQuaThanhToan>(`/hoa-don/${ma}/thanh-toan`, { phuong_thuc_thanh_toan });

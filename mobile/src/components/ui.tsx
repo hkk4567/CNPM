@@ -34,12 +34,12 @@ export function Chip({ nhan, loai = 'teal' }: { nhan: string; loai?: 'teal' | 'o
   return <View style={[s.chip, { backgroundColor: m[0] }]}><Text style={[s.chipChu, { color: m[1] }]}>{nhan}</Text></View>;
 }
 
-export function Banner({ loai = 'loi', children, taiLai }: { loai?: 'loi' | 'canhBao'; children: ReactNode; taiLai?: () => void }) {
-  const loi = loai === 'loi';
+export function Banner({ loai = 'loi', children, taiLai }: { loai?: 'loi' | 'canhBao' | 'ok'; children: ReactNode; taiLai?: () => void }) {
+  const m = { loi: [mau.loiNen, mau.loiChu], canhBao: [mau.canhBaoNen, mau.canhBaoChu], ok: [mau.okNen, mau.okChu] }[loai];
   return (
-    <View accessibilityRole="alert" style={[s.banner, { backgroundColor: loi ? mau.loiNen : mau.canhBaoNen }]}>
-      <Text style={[kieuChu.than, { color: loi ? mau.loiChu : mau.canhBaoChu }]}>{children}</Text>
-      {taiLai && <Pressable accessibilityRole="button" onPress={taiLai} style={s.thuLai}><Text style={[kieuChu.nhan, { color: loi ? mau.loiChu : mau.canhBaoChu }]}>Thử lại</Text></Pressable>}
+    <View accessibilityRole="alert" style={[s.banner, { backgroundColor: m[0] }]}>
+      <Text style={[kieuChu.than, { color: m[1] }]}>{children}</Text>
+      {taiLai && <Pressable accessibilityRole="button" onPress={taiLai} style={s.thuLai}><Text style={[kieuChu.nhan, { color: m[1] }]}>Thử lại</Text></Pressable>}
     </View>
   );
 }

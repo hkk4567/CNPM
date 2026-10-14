@@ -1,17 +1,17 @@
 // POS-11 xem order + POS-03/04/05 sửa món + POS-06 gắn khách + POS-07 đã phục vụ + POS-09 hủy.
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTai } from '../../hooks/useTai';
 import { useGioHang } from '../../context/GioHang';
-import { chiTietOrder, daPhucVu, ganKhach, huyOrder, orderDangMo, suaDong, TEN_TRANG_THAI, xoaDong, type DongOrder } from '../../api/hoa-don';
+import { chiTietOrder, daPhucVu, ganKhach, huyOrder, orderDangMo, suaDong, TEN_PHUONG_THUC, TEN_TRANG_THAI, thanhToan, xoaDong, type DongOrder, type KetQuaThanhToan, type Order, type PhuongThuc } from '../../api/hoa-don';
 import { ApiError, thongBaoLoi } from '../../api/http';
 import { Banner, Chip, Chu, Nut, The } from '../../components/ui';
 import { HopXacNhan } from '../../components/HopXacNhan';
-import { HopDaLam, HopGanKhach, HopSuaDong } from '../../components/HopHoiThoai';
-import { gioTuIso, tien } from '../../utils/tien';
+import { HopDaLam, HopGanKhach, HopSuaDong, HopThanhToan } from '../../components/HopHoiThoai';
+import { gioTuIso, ngayGio, tien } from '../../utils/tien';
 import { loaiChip } from '../(tabs)/order';
 import { mau } from '../../theme';
 
@@ -19,7 +19,14 @@ type Hop =
   | { loai: 'sua'; dong: DongOrder }
   | { loai: 'giam'; dong: DongOrder; soLuong: number; ghiChu: string | null }
   | { loai: 'xoa'; dong: DongOrder }
-  | { loai: 'khach' } | { loai: 'phucVu' } | { loai: 'huy' };
+  | { loai: 'khach' } | { loai: 'phucVu' } | { loai: 'huy' } | { loai: 'thanhToan' };
+
+// Nội dung hóa đơn dạng chữ để gửi qua Zalo/Messenger/in (POS-11)
+function vanBanHoaDon(o: Order) {
+  const dong = o.chi_tiet.map((d) => `${d.so_luong} x ${d.ten_san_pham}${d.ghi_chu ? ` (${d.ghi_chu})` : ''}: ${tien(d.thanh_tien)}`);
+  return ['HÓA ĐƠN #' + o.so_thu_tu, ngayGio(o.thoi_gian_tao), ...dong, `Tiền hàng: ${tien(o.tong_tien_hang)}`, ...(o.tong_giam_gia > 0 ? [`Giảm giá: -${tien(o.tong_giam_gia)}`] : []),
+    `TỔNG: ${tien(o.tong_tien ?? o.tong_tien_tam_tinh)}`, `Thanh toán: ${o.phuong_thuc_thanh_toan ? TEN_PHUONG_THUC[o.phuong_thuc_thanh_toan as PhuongThuc] ?? o.phuong_thuc_thanh_toan : ''}`, ...(o.ten_khach_hang ? [`Khách: ${o.ten_khach_hang}`] : []), `Nhân viên: ${o.ten_nhan_vien}`].join('\n');
+}
 
 export default function ChiTietOrder() {
   const { ma: maChuoi } = useLocalSearchParams<{ ma: string }>();
@@ -32,6 +39,7 @@ export default function ChiTietOrder() {
   const [dang, setDang] = useState(false);
   const [loiHop, setLoiHop] = useState('');
   const [baoKho] = useState(gio.canhBaoKho);
+  const [vuaTT, setVuaTT] = useState<KetQuaThanhToan | null>(null);
   useEffect(() => { if (gio.canhBaoKho.length) gio.datCanhBaoKho([]); }, [gio]); // nhận cảnh báo kho vừa gửi, rồi xóa khỏi giỏ
 
   const dong = () => { setHop(null); setLoiHop(''); };
@@ -43,6 +51,8 @@ export default function ChiTietOrder() {
     catch (e) { setLoiHop(thongBaoLoi(e)); if (e instanceof ApiError && e.ma === 'HOA_DON_DA_DONG') { dong(); taiNgam(); } }
     finally { setDang(false); }
   };
+
+  const chiaSe = async () => { if (o) { try { await Share.share({ message: vanBanHoaDon(o) }); } catch { /* người dùng đóng hộp chia sẻ */ } } };
 
   const quay = () => (router.canGoBack() ? router.back() : router.replace('/order'));
   const mo = o ? orderDangMo(o.trang_thai) : false;
@@ -58,7 +68,12 @@ export default function ChiTietOrder() {
       <ScrollView contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 24 }} refreshControl={<RefreshControl refreshing={dangLamMoi} onRefresh={lamMoi} colors={[mau.teal]} />}>
         {loi ? <Banner taiLai={taiLai}>{loi}</Banner> : null}
         {dangTai && !o ? <ActivityIndicator color={mau.teal} style={{ marginTop: 40 }} /> : null}
-        {baoKho.length > 0 && (
+        {vuaTT && o?.trang_thai === 'da_thanh_toan' && (
+          <Banner loai="ok">
+            Đã thanh toán {tien(vuaTT.hoa_don.tong_tien ?? 0)}.{vuaTT.diem_hien_tai !== null ? ` Cộng ${vuaTT.diem_cong} điểm, khách có ${vuaTT.diem_hien_tai} điểm.` : ' Khách lẻ, không tích điểm.'}
+          </Banner>
+        )}
+        {baoKho.length > 0 && mo && (
           <Banner loai="canhBao">
             Sắp hết nguyên liệu: {baoKho.map((c) => `${c.ten_nguyen_lieu} (còn ${c.so_luong_ton} ${c.don_vi_tinh})`).join(', ')}. Báo quản lý nhập thêm.
           </Banner>
@@ -66,7 +81,8 @@ export default function ChiTietOrder() {
         {o && (
           <>
             <The style={{ gap: 4 }}>
-              <Chu kieu="nho">{gioTuIso(o.thoi_gian_tao)} · {o.ten_nhan_vien}</Chu>
+              <Chu kieu="nho">{o.trang_thai === 'da_thanh_toan' ? ngayGio(o.thoi_gian_tao) : gioTuIso(o.thoi_gian_tao)} · {o.ten_nhan_vien}</Chu>
+              {o.trang_thai === 'da_thanh_toan' && o.phuong_thuc_thanh_toan ? <Chu kieu="nho">Thanh toán: {TEN_PHUONG_THUC[o.phuong_thuc_thanh_toan as PhuongThuc] ?? o.phuong_thuc_thanh_toan}</Chu> : null}
               <View style={s.hang}>
                 <Ionicons name="person-outline" size={18} color={mau.muted} />
                 <Chu kieu="nhan" style={{ flex: 1 }}>{o.ten_khach_hang ?? 'Khách lẻ'}</Chu>
@@ -96,9 +112,15 @@ export default function ChiTietOrder() {
 
             {mo ? (
               <View style={{ gap: 10 }}>
+                <Nut nhan="Thanh toán" onPress={() => setHop({ loai: 'thanhToan' })} />
                 <Nut nhan="Thêm món" kieu="vien" onPress={() => { gio.xoaHet(); gio.datDich({ ma_hoa_don: o.ma_hoa_don, so_thu_tu: o.so_thu_tu }); router.dismissTo('/'); }} />
-                {pha && <Nut nhan="Đã phục vụ" onPress={() => setHop({ loai: 'phucVu' })} />}
+                {pha && <Nut nhan="Đã phục vụ" kieu="vien" onPress={() => setHop({ loai: 'phucVu' })} />}
                 <Nut nhan="Hủy order" kieu="vien" onPress={() => setHop({ loai: 'huy' })} style={{ borderColor: mau.loi }} />
+              </View>
+            ) : o.trang_thai === 'da_thanh_toan' ? (
+              <View style={{ gap: 10 }}>
+                <Nut nhan="Chia sẻ hóa đơn" kieu="vien" onPress={chiaSe} />
+                <Chu kieu="nho" style={{ textAlign: 'center' }}>Hóa đơn đã thanh toán, không thể sửa.</Chu>
               </View>
             ) : <Chu kieu="nho" style={{ textAlign: 'center' }}>Order {TEN_TRANG_THAI[o.trang_thai].toLowerCase()}, không thể sửa.</Chu>}
           </>
@@ -127,6 +149,10 @@ export default function ChiTietOrder() {
       ) : (
         <HopXacNhan hien tieuDe="Xóa món?" noiDung={`Xóa ${hop.dong.ten_san_pham} khỏi order.${loiHop ? ` ${loiHop}` : ''}`} nhanXacNhan="Xóa món" nguyHiem onHuy={dong} onXacNhan={() => chay(() => xoaDong(ma, hop.dong.ma_chi_tiet))} />
       ))}
+      {o && hop?.loai === 'thanhToan' && (
+        <HopThanhToan key="tt" hien tong={o.tong_tien_tam_tinh} tenKhach={o.ten_khach_hang} loi={loiHop} dangXuLy={dang} onHuy={dong}
+          onXacNhan={(pt) => chay(async () => { setVuaTT(await thanhToan(ma, pt)); })} />
+      )}
       {hop?.loai === 'khach' && <HopGanKhach hien loi={loiHop} dangXuLy={dang} onHuy={dong} onGan={(sdt) => chay(() => ganKhach(ma, sdt))} />}
       {hop?.loai === 'phucVu' && <HopXacNhan hien tieuDe="Đã phục vụ?" noiDung={`Đánh dấu Order #${o?.so_thu_tu} đã phục vụ khách.${loiHop ? ` ${loiHop}` : ''}`} nhanXacNhan="Đã phục vụ" onHuy={dong} onXacNhan={() => chay(() => daPhucVu(ma))} />}
       {o && hop?.loai === 'huy' && (pha ? (

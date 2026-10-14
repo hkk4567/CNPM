@@ -45,7 +45,8 @@
     "kiem-tra": "tsc --noEmit",
     "build-web": "expo export --platform web",
     "smoke-web": "node scripts/smoke-web.mjs",
-    "smoke-goi-mon": "node scripts/smoke-goi-mon.mjs"
+    "smoke-goi-mon": "node scripts/smoke-goi-mon.mjs",
+    "smoke-thanh-toan": "node scripts/smoke-thanh-toan.mjs"
   },
   "private": true
 }

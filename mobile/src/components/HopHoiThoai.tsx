@@ -1,7 +1,10 @@
 // Các hộp thoại của màn Order (dựng bằng Modal để chạy cả trên web).
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { bo, mau } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
+import { DIEM_MOI_VND, TEN_PHUONG_THUC, type PhuongThuc } from '../api/hoa-don';
+import { tien } from '../utils/tien';
 import { BoDem, Chu, Nut, TruongNhap } from './ui';
 
 function Khung({ hien, onHuy, children }: { hien: boolean; onHuy: () => void; children: React.ReactNode }) {
@@ -84,7 +87,54 @@ export function HopSuaDong({ hien, ten, soLuong, ghiChu, toiThieuLaMot, loi, dan
   );
 }
 
+// POS-08: chọn phương thức thanh toán. Tiền mặt: nhập tiền khách đưa để xem tiền thối (chỉ để tham khảo, không gửi lên máy chủ).
+export function HopThanhToan({ hien, tong, tenKhach, loi, dangXuLy, onXacNhan, onHuy }: {
+  hien: boolean; tong: number; tenKhach: string | null; loi?: string; dangXuLy?: boolean; onXacNhan: (pt: PhuongThuc) => void; onHuy: () => void;
+}) {
+  const [pt, setPt] = useState<PhuongThuc>('tien_mat');
+  const [dua, setDua] = useState('');
+  const dauVao = Number(dua.replace(/\D/g, ''));
+  const goiY = [...new Set([tong, ...[20000, 50000, 100000, 200000, 500000].filter((m) => m > tong).slice(0, 3)])];
+  const diem = tenKhach ? Math.floor(tong / DIEM_MOI_VND) : 0;
+  return (
+    <Khung hien={hien} onHuy={onHuy}>
+      <Chu kieu="tieuMuc">Thanh toán</Chu>
+      <Chu kieu="tieuDe" style={{ color: mau.tealDam }}>{tien(tong)}</Chu>
+      <Chu kieu="nho">{tenKhach ? `Khách ${tenKhach}: cộng khoảng ${diem} điểm (cứ ${tien(DIEM_MOI_VND)} = 1 điểm).` : 'Khách lẻ: không tích điểm.'}</Chu>
+      {loi ? <Chu kieu="nho" style={{ color: mau.loi }}>{loi}</Chu> : null}
+      {(Object.keys(TEN_PHUONG_THUC) as PhuongThuc[]).map((k) => (
+        <Pressable key={k} accessibilityRole="radio" aria-checked={pt === k} accessibilityState={{ checked: pt === k }} accessibilityLabel={TEN_PHUONG_THUC[k]} onPress={() => setPt(k)} style={[s.chon, pt === k && { borderColor: mau.teal, backgroundColor: mau.tealHang }]}>
+          <Ionicons name={pt === k ? 'radio-button-on' : 'radio-button-off'} size={22} color={pt === k ? mau.teal : mau.muted} />
+          <Chu kieu="nhan">{TEN_PHUONG_THUC[k]}</Chu>
+        </Pressable>
+      ))}
+      {pt === 'tien_mat' && (
+        <View style={{ gap: 8 }}>
+          <TruongNhap nhan="Tiền khách đưa (không bắt buộc)" value={dua} onChangeText={setDua} keyboardType="number-pad" />
+          <View style={s.goiY}>
+            {goiY.map((m) => (
+              <Pressable key={m} accessibilityRole="button" accessibilityLabel={m === tong ? 'Vừa đủ' : `Đưa ${tien(m)}`} onPress={() => setDua(String(m))} style={s.chip}>
+                <Chu kieu="nhan" style={{ color: mau.teal }}>{m === tong ? 'Vừa đủ' : tien(m)}</Chu>
+              </Pressable>
+            ))}
+          </View>
+          {dua !== '' && (dauVao >= tong
+            ? <Chu kieu="tieuMuc" style={{ color: mau.okChu }}>Tiền thối: {tien(dauVao - tong)}</Chu>
+            : <Chu kieu="nhan" style={{ color: mau.loi }}>Chưa đủ, còn thiếu {tien(tong - dauVao)}</Chu>)}
+        </View>
+      )}
+      <View style={s.hang}>
+        <Nut nhan="Quay lại" kieu="vien" onPress={onHuy} style={{ flex: 1 }} />
+        <Nut nhan="Xác nhận thanh toán" dangXuLy={dangXuLy} onPress={() => onXacNhan(pt)} style={{ flex: 1.4 }} />
+      </View>
+    </Khung>
+  );
+}
+
 const s = StyleSheet.create({
+  chon: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderWidth: 1.5, borderColor: mau.line, borderRadius: bo.nho, paddingHorizontal: 12 },
+  goiY: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1.5, borderColor: mau.teal, justifyContent: 'center' },
   nen: { flex: 1, backgroundColor: 'rgba(26,43,42,0.5)', justifyContent: 'center', padding: 20 },
   hop: { backgroundColor: mau.be, borderRadius: bo.lon, padding: 18, gap: 12 },
   hang: { flexDirection: 'row', gap: 10, marginTop: 4 },
