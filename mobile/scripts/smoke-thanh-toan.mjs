@@ -5,8 +5,6 @@ import { caiGia, goi, orders } from './mock-api.mjs';
 
 const { trang, kiem, chup, gia, ketThuc, URL_APP } = await khoiDong({ cong: 4176, tienTo: 'tt-' });
 await caiGia(gia);
-// Hộp chia sẻ của trình duyệt: ghi lại nội dung thay vì mở hộp thật
-await trang.addInitScript(() => { window.__chiaSe = null; navigator.share = async (d) => { window.__chiaSe = d; }; });
 
 const coChu = async (t) => (await trang.locator('body').innerText()).includes(t);
 const nut = (ten) => trang.getByRole('button', { name: ten, exact: true });
@@ -33,8 +31,8 @@ try {
   await nut('Gửi order').click();
   await trang.getByText('Order #1').first().waitFor();
   await nut('Gắn khách').click();
-  await trang.getByLabel('Số điện thoại').fill('0912345678');
-  await nut('Gắn khách').last().click();
+  await trang.getByLabel('Số điện thoại hoặc tên').fill('0912345678');
+  await nut('Tìm').click();
   await trang.getByText('Nguyễn Thị Hoa').waitFor();
 
   // 1. Hộp thanh toán
@@ -55,38 +53,31 @@ try {
   kiem('chọn Chuyển khoản -> ẩn ô tiền khách đưa', (await trang.getByLabel('Tiền khách đưa (không bắt buộc)').count()) === 0);
   await trang.getByRole('radio', { name: 'Tiền mặt' }).click();
   await nut('Xác nhận thanh toán').click();
-  await trang.getByText('Hóa đơn đã thanh toán, không thể sửa.').waitFor();
+  await trang.getByText('Về danh sách order').waitFor();
   kiem('POST /thanh-toan {phuong_thuc_thanh_toan:"tien_mat"}', luu().p === '/hoa-don/1/thanh-toan' && JSON.stringify(luu().body) === '{"phuong_thuc_thanh_toan":"tien_mat"}', JSON.stringify(luu()));
-  kiem('banner: đã thanh toán 87.000đ, cộng 8 điểm, khách có 48 điểm', await coChu('Đã thanh toán 87.000đ. Cộng 8 điểm, khách có 48 điểm.'));
-  kiem('hóa đơn: Thanh toán: Tiền mặt, tổng tiền, không còn nút sửa', (await coChu('Thanh toán: Tiền mặt')) && (await coChu('Tổng tiền')) && (await nut('Thanh toán').count()) === 0 && (await nut('Thêm món').count()) === 0 && (await nut('Hủy order').count()) === 0);
+  kiem('đầu hóa đơn: Đã thanh toán, 87.000đ, cộng 8 điểm, khách có 48 điểm', (await coChu('Đã thanh toán')) && (await coChu('Cộng 8 điểm, khách có 48 điểm')));
+  kiem('hóa đơn: tiêu đề Hóa đơn #1, Thanh toán Tiền mặt, tổng tiền, không còn nút sửa', (await coChu('Hóa đơn #1')) && (await coChu('Tiền mặt')) && (await coChu('Tổng tiền')) && (await nut('Thanh toán').count()) === 0 && (await nut('Thêm món').count()) === 0 && (await nut('Hủy order').count()) === 0);
   await chup('02-hoa-don-da-thanh-toan');
 
-  // 2. Chia sẻ hóa đơn
-  await nut('Chia sẻ hóa đơn').click();
-  await trang.waitForFunction(() => window.__chiaSe);
-  const d = await trang.evaluate(() => window.__chiaSe); const vb = d.message ?? d.text ?? '';
-  kiem('chia sẻ hóa đơn: có số hóa đơn, các món, tổng, phương thức, khách', ['HÓA ĐƠN #1', '2 x Cà phê sữa', '1 x Trà đào', 'TỔNG: 87.000đ', 'Thanh toán: Tiền mặt', 'Khách: Nguyễn Thị Hoa'].every((x) => vb.includes(x)), vb);
-
-  // 3. Danh sách: lọc Đã thanh toán
-  await nut('Quay lại').click();
-  await trang.getByRole('tab', { name: /Order/ }).click();
+  // 2. Danh sách: nút "Về danh sách order" trên hóa đơn, lọc Đã thanh toán
+  await nut('Về danh sách order').click();
   await trang.getByRole('button', { name: 'Order 1' }).waitFor();
   await nut('Đã thanh toán').click();
   kiem('danh sách lọc "Đã thanh toán" thấy Order #1 với 87.000đ', (await trang.getByRole('button', { name: 'Order 1' }).count()) === 1 && (await coChu('87.000đ')));
   await nut('Tất cả').click();
 
-  // 4. Khách lẻ + chuyển khoản
+  // 3. Khách lẻ + chuyển khoản
   await taoOrder('Bạc xỉu');
   await trang.getByText('Order #2').first().waitFor();
   await nut('Thanh toán').click();
   await trang.getByText('Khách lẻ: không tích điểm.').waitFor();
   await trang.getByRole('radio', { name: 'Chuyển khoản' }).click();
   await nut('Xác nhận thanh toán').click();
-  await trang.getByText('Hóa đơn đã thanh toán, không thể sửa.').waitFor();
-  kiem('khách lẻ: banner không tích điểm, PT chuyển khoản', (await coChu('Khách lẻ, không tích điểm.')) && luu().body.phuong_thuc_thanh_toan === 'chuyen_khoan' && (await coChu('Thanh toán: Chuyển khoản')));
+  await trang.getByText('Về danh sách order').waitFor();
+  kiem('khách lẻ: không tích điểm, PT chuyển khoản', (await coChu('Khách lẻ, không tích điểm')) && luu().body.phuong_thuc_thanh_toan === 'chuyen_khoan' && (await coChu('Chuyển khoản')));
 
-  // 5. Order bị đóng ở nơi khác khi đang thanh toán
-  await nut('Quay lại').click();
+  // 4. Order bị đóng ở nơi khác khi đang thanh toán
+  await nut('Order mới').click(); // từ hóa đơn sang Gọi món để tạo order tiếp
   await taoOrder('Bạc xỉu');
   await trang.getByText('Order #3').first().waitFor();
   await nut('Thanh toán').click();

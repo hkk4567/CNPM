@@ -7,6 +7,7 @@ import DoiMatKhau from '../pages/auth/DoiMatKhau.jsx';
 import { vienChu } from '../utils/format.js';
 
 const NHOM = [
+  { ten: 'Bán hàng', muc: [{ den: '/hoa-don', nhan: 'Hóa đơn', icon: 'hoaDon' }] },
   { ten: 'Thực đơn', muc: [{ den: '/san-pham', nhan: 'Sản phẩm', icon: 'coc' }, { den: '/khuyen-mai', nhan: 'Khuyến mãi', icon: 'nhan' }] },
   { ten: 'Kho', muc: [{ den: '/kho', nhan: 'Tồn kho', icon: 'kho', khop: p => p.startsWith('/kho') && p !== '/kho/lich-su-nhap' }, { den: '/kho/lich-su-nhap', nhan: 'Nhập hàng', icon: 'nhap', khop: p => p === '/kho/lich-su-nhap' }] },
   { ten: 'Khách hàng', muc: [{ den: '/khach-hang', nhan: 'Khách hàng', icon: 'khach' }] },

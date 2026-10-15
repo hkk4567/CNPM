@@ -39,6 +39,7 @@ const nvDs = [
   { ma_nhan_vien: 4, ho_ten: 'Đỗ Thị Thu Ngân', chuc_vu: 'Thu ngân', so_dien_thoai: '0900000004', trang_thai: 'dang_lam', ma_tai_khoan: null, ten_dang_nhap: null, quyen_truy_cap: null },
 ];
 const caDs = [{ ma_ca: 1, ten_ca: 'Ca sáng', thoi_gian_bat_dau: '06:00:00', thoi_gian_ket_thuc: '12:00:00', so_phan_cong: 4 }, { ma_ca: 2, ten_ca: 'Ca chiều', thoi_gian_bat_dau: '12:00:00', thoi_gian_ket_thuc: '18:00:00', so_phan_cong: 0 }];
+let hdLoc = null; let hdNgay = null; let hdMo = null;
 let khPost = null; let khPatch = null; let khLoc = null;
 const khDs = [{ ma_khach_hang: 1, ten_khach_hang: 'Nguyễn Văn An', so_dien_thoai: '0901111111', diem_tich_luy: 18 }, { ma_khach_hang: 2, ten_khach_hang: 'Trần Thị Bích', so_dien_thoai: '0902222222', diem_tich_luy: 41 }];
 const nguoi = { ma_tai_khoan: 1, ma_nhan_vien: 2, ho_ten: 'Trần Thị Quản Lý', quyen_truy_cap: 'quan_ly' };
@@ -113,6 +114,24 @@ await trang.route('**/api/**', route => {
   if (p === '/khach-hang/1/lich-su') { khLoc = Object.fromEntries(u.searchParams); return json(route, { ok: true, data: [{ ma_hoa_don: 11, so_thu_tu: 3, thoi_gian_tao: ngayTu(-2), thoi_gian_thanh_toan: ngayTu(-2), phuong_thuc_thanh_toan: 'chuyen_khoan', tong_tien_hang: 70000, tong_giam_gia: 5000, tong_tien: 65000, diem_cong: 6 }], khach_hang: khDs[0], tong_chi_tieu: 180000, tong_so_ban_ghi: 3, trang: 1, moi_trang: 5 }); }
   if (p === '/khach-hang/1' && pt === 'PATCH') { khPatch = JSON.parse(route.request().postData()); return json(route, { ok: true, data: { ...khDs[0], ...khPatch } }); }
   if (p === '/khach-hang') { const q = (u.searchParams.get('tu_khoa') || '').toLowerCase(); return json(route, { ok: true, data: khDs.filter(k => k.ten_khach_hang.toLowerCase().includes(q) || k.so_dien_thoai.includes(q)) }); }
+  if (p === '/hoa-don' || /^\/hoa-don\/\d+$/.test(p)) {
+    const gio = h => `${hdNgay}T${h}:00`;
+    if (p === '/hoa-don') {
+      hdLoc = Object.fromEntries(u.searchParams); hdNgay = hdLoc.ngay || homNayStr;
+      const ds = [
+        { ma_hoa_don: 21, so_thu_tu: 1, thoi_gian_tao: gio('07:45'), trang_thai: 'da_thanh_toan', phuong_thuc_thanh_toan: 'tien_mat', ma_khach_hang: 1, ten_khach_hang: 'Nguyễn Văn An', ma_nhan_vien: 3, ten_nhan_vien: 'Phạm Văn Nhân Viên', so_mon: 3, tong_tien: 87000 },
+        { ma_hoa_don: 22, so_thu_tu: 2, thoi_gian_tao: gio('08:10'), trang_thai: 'da_thanh_toan', phuong_thuc_thanh_toan: 'chuyen_khoan', ma_khach_hang: null, ten_khach_hang: null, ma_nhan_vien: 4, ten_nhan_vien: 'Đỗ Thị Thu Ngân', so_mon: 1, tong_tien: 35000 },
+        { ma_hoa_don: 23, so_thu_tu: 3, thoi_gian_tao: gio('09:30'), trang_thai: 'dang_pha_che', phuong_thuc_thanh_toan: null, ma_khach_hang: null, ten_khach_hang: null, ma_nhan_vien: 3, ten_nhan_vien: 'Phạm Văn Nhân Viên', so_mon: 2, tong_tien: 64000 },
+        { ma_hoa_don: 24, so_thu_tu: 4, thoi_gian_tao: gio('10:05'), trang_thai: 'huy', phuong_thuc_thanh_toan: null, ma_khach_hang: null, ten_khach_hang: null, ma_nhan_vien: 3, ten_nhan_vien: 'Phạm Văn Nhân Viên', so_mon: 1, tong_tien: 29000 },
+      ].filter(d => (!hdLoc.trang_thai || d.trang_thai === hdLoc.trang_thai) && (!hdLoc.ma_nhan_vien || String(d.ma_nhan_vien) === hdLoc.ma_nhan_vien));
+      return json(route, { ok: true, data: ds, tong_so_ban_ghi: ds.length, trang: 1, moi_trang: 200 });
+    }
+    hdMo = p;
+    return json(route, { ok: true, data: { ma_hoa_don: 21, so_thu_tu: 1, thoi_gian_tao: gio('07:45'), trang_thai: 'da_thanh_toan', phuong_thuc_thanh_toan: 'tien_mat', ten_khach_hang: 'Nguyễn Văn An', ten_nhan_vien: 'Phạm Văn Nhân Viên',
+      tong_tien_hang: 93000, tong_giam_gia: 6000, tong_tien_tam_tinh: 87000, tong_tien: 87000,
+      chi_tiet: [{ ma_chi_tiet: 1, ma_san_pham: 2, ten_san_pham: 'Cà phê sữa', so_luong: 2, don_gia: 29000, giam_gia: 6000, ghi_chu: 'ít đường', thanh_tien: 52000, khuyen_mai: [{ ma_khuyen_mai: 1, ten_khuyen_mai: 'Giảm 10% cà phê', muc_giam_moi_ly: 3000 }] },
+        { ma_chi_tiet: 2, ma_san_pham: 4, ten_san_pham: 'Trà đào cam sả', so_luong: 1, don_gia: 35000, giam_gia: 0, ghi_chu: null, thanh_tien: 35000, khuyen_mai: [] }] } });
+  }
   return json(route, { ok: false, loi: 'KHONG_TIM_THAY', thong_bao: `chưa giả lập ${pt} ${p}` }, 404);
 });
 
@@ -393,6 +412,46 @@ await trang.locator('#bc-tu').fill('2000-01-01'); await trang.locator('#bc-den')
 await trang.getByRole('button', { name: 'Xem báo cáo' }).click();
 await trang.getByText(/Chưa có hóa đơn đã thanh toán trong khoảng này/).waitFor();
 kiemTra(true, 'khoảng không có dữ liệu: hiện thông báo rỗng, không vẽ biểu đồ trống');
+// ---- Hóa đơn (quản lý) ----
+await trang.getByRole('link', { name: 'Hóa đơn', exact: true }).click();
+await trang.waitForURL('**/hoa-don');
+await trang.getByRole('table', { name: 'Danh sách hóa đơn' }).locator('tbody tr').first().waitFor();
+const bangHd = trang.getByRole('table', { name: 'Danh sách hóa đơn' });
+kiemTra(hdLoc.ngay === homNayStr && hdLoc.moi_trang === '200', 'Hóa đơn: mặc định ngày hôm nay, tải tối đa 200');
+kiemTra(await bangHd.locator('tbody tr').count() === 4, 'Hóa đơn: bảng 4 hóa đơn');
+const chiSoHd = await trang.locator('.chi-so').innerText();
+kiemTra(chiSoHd.includes('122.000đ') && chiSoHd.includes('2 hóa đơn'), 'Hóa đơn: doanh thu chỉ cộng hóa đơn đã thanh toán (87.000 + 35.000)');
+kiemTra((await bangHd.innerText()).includes('Khách lẻ') && (await bangHd.innerText()).includes('Chuyển khoản') && (await bangHd.innerText()).includes('07:45'), 'Hóa đơn: khách lẻ, phương thức, giờ hiển thị');
+await trang.getByRole('button', { name: 'Ngày sau' }).isDisabled().then(v => kiemTra(v, 'Hóa đơn: hôm nay thì khóa nút Ngày sau'));
+await trang.getByLabel('Trạng thái').selectOption('huy');
+await trang.waitForTimeout(300);
+kiemTra(hdLoc.trang_thai === 'huy' && await bangHd.locator('tbody tr').count() === 1, 'Hóa đơn: lọc trạng thái Đã hủy gửi trang_thai=huy');
+await trang.getByLabel('Trạng thái').selectOption('');
+await trang.getByLabel('Nhân viên').selectOption('4');
+await trang.waitForTimeout(300);
+kiemTra(hdLoc.ma_nhan_vien === '4' && await bangHd.locator('tbody tr').count() === 1, 'Hóa đơn: lọc nhân viên gửi ma_nhan_vien=4');
+await trang.getByLabel('Nhân viên').selectOption('');
+await trang.getByRole('button', { name: 'Ngày trước' }).click();
+await trang.waitForTimeout(300);
+kiemTra(hdLoc.ngay === cong(homNayStr, -1) && await trang.getByRole('button', { name: 'Hôm nay' }).count() === 1, 'Hóa đơn: lùi một ngày gửi ngay hôm qua, hiện nút Hôm nay');
+await trang.getByRole('button', { name: 'Hôm nay' }).click();
+await trang.waitForTimeout(300);
+kiemTra(hdLoc.ngay === homNayStr, 'Hóa đơn: nút Hôm nay quay lại hôm nay');
+await bangHd.locator('tbody tr').first().click();
+await trang.getByRole('complementary', { name: 'Chi tiết hóa đơn' }).getByText('Hóa đơn #1').waitFor();
+const pnHd = await trang.getByRole('complementary', { name: 'Chi tiết hóa đơn' }).innerText();
+kiemTra(hdMo === '/hoa-don/21' && pnHd.includes('2 × Cà phê sữa') && pnHd.includes('Giảm 10% cà phê') && pnHd.includes('ít đường') && pnHd.includes('87.000đ') && pnHd.includes('Tiền mặt'), 'Hóa đơn: panel chi tiết có món, khuyến mãi, ghi chú, tổng tiền, phương thức');
+kiemTra(await trang.getByRole('button', { name: 'In hóa đơn' }).count() === 1, 'Hóa đơn: có nút In hóa đơn');
+await trang.waitForTimeout(300);
+await trang.screenshot({ path: RA + '18-hoa-don.png' });
+await trang.setViewportSize({ width: 390, height: 900 });
+await trang.waitForTimeout(400);
+await trang.screenshot({ path: RA + '19-hoa-don-di-dong.png', fullPage: true });
+kiemTra(await trang.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'điện thoại: trang Hóa đơn không bị cuộn ngang');
+await trang.setViewportSize({ width: 1360, height: 900 });
+await trang.getByRole('link', { name: 'Báo cáo', exact: true }).click();
+await trang.waitForURL('**/bao-cao**');
+
 await trang.setViewportSize({ width: 390, height: 900 });
 await trang.getByRole('link', { name: 'Doanh thu', exact: true }).click();
 await trang.locator('#bc-tu').fill(homNayStr.slice(0, 8) + '01'); await trang.locator('#bc-den').fill(homNayStr);

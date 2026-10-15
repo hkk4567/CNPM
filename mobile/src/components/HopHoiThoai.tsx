@@ -44,27 +44,6 @@ export function HopDaLam({ hien, tieuDe, noiDung, dong, nhanXacNhan, nguyHiem, d
   );
 }
 
-export function HopGanKhach({ hien, loi, dangXuLy, onGan, onHuy }: { hien: boolean; loi?: string; dangXuLy?: boolean; onGan: (sdt: string) => void; onHuy: () => void }) {
-  const [sdt, setSdt] = useState('');
-  const [loiNoi, setLoiNoi] = useState('');
-  const gui = () => {
-    const x = sdt.trim();
-    if (!/^0\d{9}$/.test(x)) { setLoiNoi('Số điện thoại gồm 10 chữ số và bắt đầu bằng 0'); return; }
-    setLoiNoi(''); onGan(x);
-  };
-  return (
-    <Khung hien={hien} onHuy={onHuy}>
-      <Chu kieu="tieuMuc">Gắn khách thành viên</Chu>
-      <Chu kieu="nho">Nhập số điện thoại khách đã đăng ký. Điểm được cộng lúc thanh toán cho khách đang gắn trên order.</Chu>
-      <TruongNhap nhan="Số điện thoại" value={sdt} onChangeText={setSdt} keyboardType="phone-pad" maxLength={10} loi={loiNoi || loi} onSubmitEditing={gui} />
-      <View style={s.hang}>
-        <Nut nhan="Hủy" kieu="vien" onPress={onHuy} style={{ flex: 1 }} />
-        <Nut nhan="Gắn khách" dangXuLy={dangXuLy} onPress={gui} style={{ flex: 1 }} />
-      </View>
-    </Khung>
-  );
-}
-
 // Sửa một dòng món: số lượng + ghi chú, hoặc xóa dòng.
 export function HopSuaDong({ hien, ten, soLuong, ghiChu, toiThieuLaMot, loi, dangXuLy, onLuu, onXoa, onHuy }: {
   hien: boolean; ten: string; soLuong: number; ghiChu: string; toiThieuLaMot: boolean; loi?: string; dangXuLy?: boolean;

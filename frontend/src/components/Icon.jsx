@@ -12,6 +12,7 @@ const D = {
   tim: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4',
   menu: 'M4 7h16 M4 12h16 M4 17h16',
   xoa: 'M6 6l12 12 M18 6L6 18',
+  hoaDon: 'M6 3h12v18l-3-2-3 2-3-2-3 2V3z M9 8h6 M9 12h6',
   canhBao: 'M12 3l10 18H2L12 3z M12 10v5 M12 18h.01',
 };
 

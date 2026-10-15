@@ -77,15 +77,12 @@ try {
 
   // 5. Gắn khách
   await nut('Gắn khách').click();
-  await trang.getByLabel('Số điện thoại').fill('123');
-  await nut('Gắn khách').last().click();
-  kiem('SĐT sai định dạng -> báo ngay, chưa gọi máy chủ', (await coChu('Số điện thoại gồm 10 chữ số và bắt đầu bằng 0')) && luu().p.endsWith('/dong/101'));
-  await trang.getByLabel('Số điện thoại').fill('0900000000');
-  await nut('Gắn khách').last().click();
-  await trang.getByText('Chưa có khách hàng với số điện thoại này').waitFor();
-  kiem('SĐT chưa đăng ký -> hiện thông báo của máy chủ', true);
-  await trang.getByLabel('Số điện thoại').fill('0912345678');
-  await nut('Gắn khách').last().click();
+  await trang.getByLabel('Số điện thoại hoặc tên').fill('0900000000');
+  await nut('Tìm').click();
+  await trang.getByText('chưa đăng ký thành viên', { exact: false }).waitFor();
+  kiem('SĐT chưa đăng ký -> báo chưa đăng ký, có nút Tạo khách mới', (await nut('Tạo khách mới').count()) === 1);
+  await trang.getByLabel('Số điện thoại hoặc tên').fill('0912345678');
+  await nut('Tìm').click();
   await trang.getByText('Nguyễn Thị Hoa').waitFor();
   kiem('gắn khách thành công, nút đổi thành "Đổi khách"', (await nut('Đổi khách').count()) === 1);
   await chup('06-gan-khach');

@@ -249,3 +249,20 @@ table.bang.bang-nho td { height: 48px; }
 .bd-tip { min-width: 230px; }
 .bd-tip-dong > span { white-space: nowrap; }
 table.bang.bang-nho th { white-space: nowrap; }
+
+/* ---------- Hóa đơn (quản lý) ---------- */
+.thong-tin { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.thong-tin > div { display: flex; justify-content: space-between; gap: 12px; }
+.thong-tin dt { color: var(--muted); }
+.thong-tin dd { margin: 0; text-align: right; font-weight: 600; }
+.cong-hd { margin: 0; padding-top: 12px; border-top: 1px dashed var(--line-input); display: flex; flex-direction: column; gap: 4px; }
+.cong-hd > div { display: flex; justify-content: space-between; gap: 12px; }
+.cong-hd dt { color: var(--muted); }
+.cong-hd dd { margin: 0; font-variant-numeric: tabular-nums; }
+.cong-hd .tong dt, .cong-hd .tong dd { color: var(--ink); font-size: 18px; font-weight: 700; }
+@media print {
+  body * { visibility: hidden; }
+  .panel-hoa-don, .panel-hoa-don * { visibility: visible; }
+  .panel-hoa-don { position: absolute; left: 0; top: 0; width: 100%; max-height: none; overflow: visible; border: 0; box-shadow: none; padding: 0; }
+  .khong-in { display: none !important; }
+}

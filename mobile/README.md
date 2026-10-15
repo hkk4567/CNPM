@@ -2,14 +2,14 @@
 
 Đợt 1: đăng nhập, **Lịch làm việc của tôi** (NS-07), **Cá nhân** (đổi mật khẩu AUTH-02, đăng xuất).
 Đợt 2: **Gọi món** (POS-01 menu, POS-02 tạo order, POS-03/04/05 thêm/sửa/xóa món, POS-06 gắn khách, POS-07 đã phục vụ, POS-09 hủy, POS-10 danh sách order hôm nay, POS-11 chi tiết order).
-Đợt 3: **Thanh toán** (POS-08: tiền mặt / chuyển khoản / ví, tiền thối, điểm tích lũy) và **xem / chia sẻ hóa đơn** đã thanh toán (POS-11).
-Đợt sau: Tạo nhanh khách hàng (KH-01/KH-03).
+Đợt 3: **Thanh toán** (POS-08: tiền mặt / chuyển khoản / ví, tiền thối, điểm tích lũy) và **xem hóa đơn** đã thanh toán (POS-11).
+Đợt 4: **Tìm và tạo nhanh khách hàng** (KH-03, KH-01) ngay trong hộp "Gắn khách" của order.
 
 ## Cấu trúc
 ```
 mobile/
 ├─ app.json, package.json, tsconfig.json, eslint.config.js, .env.example
-├─ scripts/{lib-smoke,mock-api,smoke-web,smoke-goi-mon,smoke-thanh-toan}.mjs   # kiểm thử giao diện (playwright, API giả) + anh-smoke/*.png
+├─ scripts/{lib-smoke,mock-api,smoke-web,smoke-goi-mon,smoke-thanh-toan,smoke-khach}.mjs   # kiểm thử giao diện (playwright, API giả) + anh-smoke/*.png
 └─ src/
    ├─ app/                      # Expo Router: mỗi file là một màn
    │  ├─ _layout.tsx            # font, PhienProvider, Stack.Protected (chưa đăng nhập -> dang-nhap)
@@ -18,9 +18,9 @@ mobile/
    │  ├─ gio-hang.tsx           # giỏ gọi món -> gửi order mới hoặc thêm vào order đang mở
    │  ├─ order/[ma].tsx         # chi tiết order: sửa/xóa món, gắn khách, đã phục vụ, hủy
    │  └─ (tabs)/{_layout,index,order,lich,toi}.tsx   # 4 tab: Gọi món, Order, Lịch làm việc, Cá nhân
-   ├─ api/{cau-hinh,http,auth,nhan-su,menu,hoa-don}.ts # gọi backend, cùng dạng {ok,data} với web
+   ├─ api/{cau-hinh,http,auth,nhan-su,menu,hoa-don,khach-hang}.ts # gọi backend, cùng dạng {ok,data} với web
    ├─ context/{Phien,GioHang}.tsx  # phiên đăng nhập (token trong SecureStore); giỏ gọi món trong bộ nhớ
-   ├─ hooks/useTai.ts, components/{ui,HopXacNhan,HopHoiThoai}.tsx, utils/ngay.ts, theme.ts, storage.ts
+   ├─ hooks/useTai.ts, components/{ui,HopXacNhan,HopHoiThoai,HopKhach,HoaDon}.tsx, utils/ngay.ts, theme.ts, storage.ts
 ```
 
 ## Chạy
@@ -34,7 +34,7 @@ mobile/
 
 ## Kiểm tra
 - `npm run kiem-tra` (tsc), `npm run lint`
-- `npm run build-web` rồi `npm run smoke-web` (đăng nhập, lịch, cá nhân) `npm run smoke-goi-mon` (gọi món, order) và `npm run smoke-thanh-toan` (thanh toán, hóa đơn). Cần playwright; nếu cài ở nơi khác: `PW_DIR=<thư mục có playwright> node scripts/smoke-goi-mon.mjs`.
+- `npm run build-web` rồi `npm run smoke-web` (đăng nhập, lịch, cá nhân) `npm run smoke-goi-mon` (gọi món, order) `npm run smoke-thanh-toan` (thanh toán, hóa đơn) và `npm run smoke-khach` (tìm / tạo khách). Cần playwright; nếu cài ở nơi khác: `PW_DIR=<thư mục có playwright> node scripts/smoke-goi-mon.mjs`.
 - Chạy bản web của app (`npx expo start --web`, cổng 8081) cần backend cho phép CORS từ `http://localhost:8081`: `CORS_ORIGIN=http://localhost:5173,http://localhost:8081` trong backend/.env.
 
 ## Ghi chú

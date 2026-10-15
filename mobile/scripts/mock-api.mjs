@@ -9,6 +9,12 @@ const MENU = [
   { ma_san_pham: 3, ma_danh_muc: 1, ten_danh_muc: 'Cà phê', ten_san_pham: 'Bạc xỉu', gia_ban: 32000, gia_sau_giam: 32000, tong_giam_moi_ly: 0, so_ly_toi_da: null, du_nguyen_lieu: true, khuyen_mai: [] },
   { ma_san_pham: 4, ma_danh_muc: 3, ten_danh_muc: 'Đồ ăn', ten_san_pham: 'Bánh mì', gia_ban: 25000, gia_sau_giam: 25000, tong_giam_moi_ly: 0, so_ly_toi_da: 0, du_nguyen_lieu: false, khuyen_mai: [] },
 ];
+export const khachHang = [
+  { ma_khach_hang: 3, ten_khach_hang: 'Nguyễn Thị Hoa', so_dien_thoai: '0912345678', diem_tich_luy: 40 },
+  { ma_khach_hang: 4, ten_khach_hang: 'Nguyễn Văn Bình', so_dien_thoai: '0987654321', diem_tich_luy: 12 },
+  { ma_khach_hang: 5, ten_khach_hang: 'Trần Thị Hoa', so_dien_thoai: '0933333333', diem_tich_luy: 0 },
+];
+const khongDau = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
 const sp = (ma) => MENU.find((m) => m.ma_san_pham === ma);
 
 // ---- Máy chủ giả có trạng thái ----
@@ -30,6 +36,16 @@ export const caiGia = (gia) => gia(async (p, rq, u) => {
   if (p === '/auth/toi') return ok(NV);
   if (p === '/san-pham/menu') return ok(MENU);
   if (p === '/nhan-su/lich-tuan') return ok([], { tu_ngay: u.searchParams.get('tu_ngay'), den_ngay: u.searchParams.get('tu_ngay') });
+  if (p === '/khach-hang' && m === 'GET') {
+    const k = khongDau(u.searchParams.get('tu_khoa') || '');
+    return ok(khachHang.filter((x) => khongDau(x.ten_khach_hang).includes(k) || x.so_dien_thoai.includes(k)));
+  }
+  if (p === '/khach-hang' && m === 'POST') {
+    goi.push({ m, p, body });
+    if (khachHang.some((x) => x.so_dien_thoai === body.so_dien_thoai)) return loi(409, 'TRUNG_SDT', 'Số điện thoại đã tồn tại');
+    const moi = { ma_khach_hang: 10 + khachHang.length, ten_khach_hang: body.ten_khach_hang, so_dien_thoai: body.so_dien_thoai, diem_tich_luy: 0 };
+    khachHang.push(moi); return { ...ok(moi), status: 201 };
+  }
   if (p === '/hoa-don' && m === 'GET') {
     const tt = u.searchParams.get('trang_thai'); const ds = orders.filter((o) => !tt || o.trang_thai === tt).map(tom);
     return ok(ds, { tong_so_ban_ghi: ds.length, trang: 1, moi_trang: 200 });
@@ -55,7 +71,18 @@ export const caiGia = (gia) => gia(async (p, rq, u) => {
     if (k[2] === 'thanh-toan') {
       const t = tinh(o).tong_tien_tam_tinh; const diem = o.ma_khach_hang ? Math.floor(t / 10000) : 0;
       o.trang_thai = 'da_thanh_toan'; o.phuong_thuc_thanh_toan = body.phuong_thuc_thanh_toan; o.tong_chot = t;
-      return ok({ hoa_don: tinh(o), diem_cong: diem, diem_hien_tai: o.ma_khach_hang ? 40 + diem : null });
+      return ok({ hoa_don: tinh(o), diem_cong: diem, diem_hien_tai: o.ma_khach_hang ? khachHang.find((x) => x.ma_khach_hang === o.ma_khach_hang).diem_tich_luy + diem : null });
+    }
+    if (k[2] === 'huy') { o.trang_thai = 'huy'; return ok(tinh(o)); }
+    if (k[2] === 'khach-hang') {
+      const kh = khachHang.find((x) => x.so_dien_thoai === body.so_dien_thoai);
+      if (!kh) return loi(404, 'KHONG_TIM_THAY', 'Chưa có khách hàng với số điện thoại này; hãy tạo khách mới');
+      o.ma_khach_hang = kh.ma_khach_hang; o.ten_khach_hang = kh.ten_khach_hang; return ok(kh);
+    }
+    if (k[2] === 'thanh-toan') {
+      const t = tinh(o).tong_tien_tam_tinh; const diem = o.ma_khach_hang ? Math.floor(t / 10000) : 0;
+      o.trang_thai = 'da_thanh_toan'; o.phuong_thuc_thanh_toan = body.phuong_thuc_thanh_toan; o.tong_chot = t;
+      return ok({ hoa_don: tinh(o), diem_cong: diem, diem_hien_tai: o.ma_khach_hang ? khachHang.find((x) => x.ma_khach_hang === o.ma_khach_hang).diem_tich_luy + diem : null });
     }
     if (k[2] === 'huy') { o.trang_thai = 'huy'; return ok(tinh(o)); }
     if (k[2] === 'khach-hang') {

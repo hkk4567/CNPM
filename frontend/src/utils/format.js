@@ -79,3 +79,8 @@ export const tickDep = (max, soTick = 4) => {
   for (let i = 0; i * b <= dinh + 1e-9; i++) ticks.push(+(i * b).toFixed(6));
   return { max: dinh, ticks };
 };
+
+// Trạng thái hóa đơn / order (POS-10, POS-11)
+export const TEN_TRANG_THAI_HD = { dang_pha_che: 'Đang pha chế', da_phuc_vu: 'Đã phục vụ', da_thanh_toan: 'Đã thanh toán', huy: 'Đã hủy' };
+export const CHIP_TRANG_THAI_HD = { dang_pha_che: 'chip-warn', da_phuc_vu: 'chip-teal', da_thanh_toan: 'chip-ok', huy: 'chip-off' };
+export const gioPhut = s => { const d = new Date(s); return `${hai(d.getHours())}:${hai(d.getMinutes())}`; };
