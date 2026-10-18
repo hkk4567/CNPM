@@ -2,26 +2,28 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTrangAn } from '../context/TrangAnContext.jsx';
 import Icon from '../components/Icon.jsx';
 import DoiMatKhau from '../pages/auth/DoiMatKhau.jsx';
 import { vienChu } from '../utils/format.js';
 
 const NHOM = [
-  { ten: 'Bán hàng', muc: [{ den: '/hoa-don', nhan: 'Hóa đơn', icon: 'hoaDon' }] },
-  { ten: 'Thực đơn', muc: [{ den: '/san-pham', nhan: 'Sản phẩm', icon: 'coc' }, { den: '/khuyen-mai', nhan: 'Khuyến mãi', icon: 'nhan' }] },
-  { ten: 'Kho', muc: [{ den: '/kho', nhan: 'Tồn kho', icon: 'kho', khop: p => p.startsWith('/kho') && p !== '/kho/lich-su-nhap' }, { den: '/kho/lich-su-nhap', nhan: 'Nhập hàng', icon: 'nhap', khop: p => p === '/kho/lich-su-nhap' }] },
-  { ten: 'Khách hàng', muc: [{ den: '/khach-hang', nhan: 'Khách hàng', icon: 'khach' }] },
+  { ten: 'Bán hàng', muc: [{ den: '/hoa-don', ma: 'hoa-don', nhan: 'Hóa đơn', icon: 'hoaDon' }] },
+  { ten: 'Thực đơn', muc: [{ den: '/san-pham', ma: 'san-pham', nhan: 'Sản phẩm', icon: 'coc' }, { den: '/khuyen-mai', ma: 'khuyen-mai', nhan: 'Khuyến mãi', icon: 'nhan' }] },
+  { ten: 'Kho', muc: [{ den: '/kho', ma: 'kho/ton-kho', nhan: 'Tồn kho', icon: 'kho', khop: p => p.startsWith('/kho') && p !== '/kho/lich-su-nhap' }, { den: '/kho/lich-su-nhap', ma: 'kho/lich-su-nhap', nhan: 'Nhập hàng', icon: 'nhap', khop: p => p === '/kho/lich-su-nhap' }] },
+  { ten: 'Khách hàng', muc: [{ den: '/khach-hang', ma: 'khach-hang/tra-cuu', nhan: 'Khách hàng', icon: 'khach' }] },
   { ten: 'Nhân sự', muc: [
-    { den: '/lich-lam-viec', nhan: 'Lịch làm việc', icon: 'lich' },
-    { den: '/nhan-vien', nhan: 'Nhân viên', icon: 'nhanVien' },
-    { den: '/tai-khoan', nhan: 'Tài khoản và quyền', icon: 'khoa', chiAdmin: true },
+    { den: '/lich-lam-viec', ma: 'lich-lam-viec/lich-tuan', nhan: 'Lịch làm việc', icon: 'lich' },
+    { den: '/nhan-vien', ma: 'nhan-vien', nhan: 'Nhân viên', icon: 'nhanVien' },
+    { den: '/tai-khoan', ma: 'tai-khoan', nhan: 'Tài khoản và quyền', icon: 'khoa', chiAdmin: true },
   ] },
-  { ten: 'Báo cáo', muc: [{ den: '/bao-cao', nhan: 'Báo cáo', icon: 'baoCao' }] },
+  { ten: 'Báo cáo', muc: [{ den: '/bao-cao', ma: 'bao-cao/doanh-thu', nhan: 'Báo cáo', icon: 'baoCao' }] },
 ];
 const TEN_QUYEN = { admin: 'Admin', quan_ly: 'Quản lý', nhan_vien: 'Nhân viên' };
 
 export default function MainLayout() {
   const { nguoiDung, dangXuat } = useAuth();
+  const { timAn } = useTrangAn();
   const dieuHuong = useNavigate();
   const [moMenu, setMoMenu] = useState(false);
   const [moDoiMk, setMoDoiMk] = useState(false);
@@ -44,11 +46,15 @@ export default function MainLayout() {
           {NHOM.map(n => (
             <div key={n.ten} className="menu-nhom">
               <div className="menu-nhom-ten">{n.ten}</div>
-              {n.muc.filter(m => !m.chiAdmin || laAdmin).map(m => (
-                <NavLink key={m.den} to={m.den} className={({ isActive }) => `menu-muc${(m.khop ? m.khop(viTri.pathname) : isActive) ? ' active' : ''}`}>
-                  <Icon ten={m.icon} /><span>{m.nhan}</span>
-                </NavLink>
-              ))}
+              {n.muc.filter(m => !m.chiAdmin || laAdmin).map(m => {
+                const an = timAn(m.ma); // trang đang ẩn: vẫn bấm được, mờ đi + icon khóa, trang sẽ hiện thông báo
+                return (
+                  <NavLink key={m.den} to={m.den} title={an ? `Không khả dụng: ${an.ly_do}` : undefined} className={({ isActive }) => `menu-muc${(m.khop ? m.khop(viTri.pathname) : isActive) ? ' active' : ''}${an ? ' khoa' : ''}`}>
+                    <Icon ten={m.icon} /><span>{m.nhan}</span>
+                    {an && <><span className="dau-khoa"><Icon ten="oKhoa" size={16} /></span><span className="sr-only">(không khả dụng)</span></>}
+                  </NavLink>
+                );
+              })}
             </div>
           ))}
         </div>

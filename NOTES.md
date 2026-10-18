@@ -413,3 +413,28 @@
 - Sửa chung: icon `hoaDon`, nhóm menu "Bán hàng → Hóa đơn", route `/hoa-don` (admin + quản lý), helper `TEN_TRANG_THAI_HD`, `CHIP_TRANG_THAI_HD`, `gioPhut` trong `utils/format.js`, CSS cuối `styles/index.css`.
 **Kiểm thử:** `frontend/scripts/smoke-ui.mjs` thêm mock `/hoa-don`, `/hoa-don/:ma` và 12 kiểm tra mới → 90/90 đạt; ảnh `anh-smoke/18-hoa-don.png`, `19-hoa-don-di-dong.png`. Chạy lại: `npm run build && npx vite preview --port 4173 &` rồi `node scripts/smoke-ui.mjs`.
 **Giới hạn:** mới kiểm thử bằng dữ liệu giả; chưa chạy với backend/MySQL thật; chưa thử in thật ra giấy.
+
+
+## Bước 16 – Ẩn trang/tab web admin: backend + script (đợt 1/2; đã làm, đã test; frontend làm ở đợt 2)
+**Yêu cầu (người dùng chốt):** khi bận (bảo trì) chạy script để ẩn trang; bấm vào thì hiện "trang này không khả dụng". Quyết định: (1) mục menu của trang bị ẩn VẪN HIỆN, làm mờ + icon khóa, bấm vào ra thông báo; (2) ẩn được riêng từng TAB; (3) KHÔNG khóa API (app điện thoại dùng chung /hoa-don, /san-pham/menu, /nhan-su/lich-tuan; đây không phải biện pháp bảo mật); (4) lưu ở file JSON, không cần MySQL/XAMPP.
+**Đã làm**
+- `backend/config/trang-an.json` (mặc định `{}`): `{ "<ma>": { "ly_do": "...", "luc": "<ISO>" } }`. Đường dẫn đổi được bằng biến TRANG_AN_FILE (dùng cho test).
+- `backend/src/config/trang.js`: danh sách mã hợp lệ (trang: hoa-don, san-pham, khuyen-mai, kho, khach-hang, lich-lam-viec, nhan-vien, tai-khoan, bao-cao; tab: `<trang>/<tab>` khớp khóa tab trong frontend). Ẩn mã trang = ẩn mọi tab con; ẩn mã tab = chỉ tab đó. Thêm trang/tab mới ở frontend thì thêm vào file này.
+- `backend/src/modules/he-thong/*` (5 file): `GET /api/he-thong/trang-an` (cần đăng nhập, mọi quyền) → `{ ok, data: { trang_an: { ma: { ly_do, luc } } } }`. Đọc file mỗi request (file nhỏ, không cần restart backend); file hỏng thì coi như không ẩn gì + cảnh báo console. Ghi file bằng tạm rồi đổi tên (không ghi dở). Dòng gắn route trong `backend/src/routes.js`.
+- `scripts/an-trang/an-trang.js`: `ds`, `an <ma...> [--ly-do "..."]`, `hien <ma...>`, `hien-het`. Mã sai thì từ chối cả lệnh (không ghi một phần), in danh sách mã hợp lệ; ẩn tab con rồi `hien` tab khi cha còn ẩn thì có cảnh báo. Dùng chung service với backend, không đụng CSDL/.env.
+- Test: `backend/tests/he-thong.test.js` – 7/7 qua (mã hợp lệ, ẩn/hiện, quy tắc cha-con, file hỏng, endpoint 401 + 200, chạy thật script). Test không cần MySQL (xác thực được thay bản giả). Chạy lại: `cd backend && npm install && node --test tests/he-thong.test.js`.
+**Giới hạn:** chưa có frontend (đợt 2: context tải danh sách + tải lại định kỳ, `RequireTrang`, trang thông báo, menu mờ + khóa, ẩn tab trong thanh tab); chưa chạy `npm test` toàn bộ (cần MySQL); chỉ ẩn ở giao diện.
+
+
+## Bước 17 – Ẩn trang/tab web admin: frontend (đợt 2/2; đã làm, đã test bằng dữ liệu giả; CHƯA chạy với backend/MySQL thật)
+**Cách hoạt động:** sau khi đăng nhập, web gọi `GET /api/he-thong/trang-an` rồi hỏi lại mỗi khi đổi trang, khi tab trình duyệt hiện lại, và mỗi 30 giây (`CHU_KY_MS` trong TrangAnContext). Vậy sau khi chạy `node scripts/an-trang/an-trang.js an ...` thì người đang mở web thấy thay đổi trong tối đa ~30 giây hoặc ngay khi bấm sang trang khác; không cần tải lại trang, không cần khởi động lại backend.
+**Đã làm (frontend/src)**
+- `api/he-thong.api.js`, `utils/trang-an.js` (quy tắc cha-con, khớp backend), `context/TrangAnContext.jsx` (Provider đặt trong AuthProvider ở App.jsx; có `daTai` để chưa vẽ trang khi chưa biết trạng thái ẩn; lỗi mạng/500 thì GIỮ NGUYÊN danh sách cũ, lần đầu lỗi thì coi như không ẩn gì).
+- `pages/chung/TrangKhongKhaDung.jsx`: "Trang này hiện không khả dụng" + lý do + nút Kiểm tra lại (hỏi lại ngay) + Về trang chủ.
+- `routes/RequireTrang.jsx` + `AppRoutes.jsx`: bọc 9 trang (hoa-don, san-pham, khuyen-mai, kho, khach-hang, lich-lam-viec, nhan-vien, bao-cao, tai-khoan). Ẩn trang = thay nội dung trang, menu và khung vẫn còn.
+- `components/TabAn.jsx` (`VienTab`, `NoiDungTab`) dùng trong 4 trang có tab (kho, khach-hang, nhan-su/LichLamViec, bao-cao): tab bị ẩn mờ đi + icon khóa nhưng vẫn bấm được, bấm vào thì khung nội dung hiện thông báo (Báo cáo: thông báo thay cả hàng bộ lọc).
+- `layouts/MainLayout.jsx`: mỗi mục menu có `ma` (mã trang/tab đích): mục bị ẩn mờ đi + icon khóa + `title` ghi lý do + chữ "(không khả dụng)" cho trình đọc màn hình; vẫn bấm được. Mục Tồn kho/Khách hàng/Lịch làm việc/Báo cáo dùng mã của tab đầu (đích của link), nên ẩn tab đầu thì mục menu cũng mờ.
+- `components/Icon.jsx` thêm icon `oKhoa`; `styles/index.css` thêm `.khoa`, `.dau-khoa`.
+**Kiểm thử:** `frontend/scripts/smoke-trang-an.mjs` (mới) – 27/27 đạt: menu mờ/khóa, thông báo + lý do, gõ thẳng URL, ẩn tab Lịch sử nhập, ẩn tab Báo cáo chi phí (mất cả bộ lọc), ẩn trang cha chặn cả tab con, tự hỏi lại sau 30 giây, nút Kiểm tra lại, endpoint 500 giữ nguyên trạng thái, điện thoại không cuộn ngang, không lỗi console. `smoke-ui.mjs` (thêm mock `/he-thong/trang-an`) vẫn 90/90. Backend `tests/he-thong.test.js` 7/7. Ảnh: anh-smoke/20..23-trang-an-*.png. Chạy lại: `cd frontend && npm run build && (npx vite preview --port 4173 &) && node scripts/smoke-trang-an.mjs`.
+**Giới hạn:** chỉ ẩn ở giao diện (API không bị khóa, theo quyết định ở Bước 16); người đang nhập dở form trong trang vừa bị ẩn sẽ mất phần chưa lưu (trang bị thay bằng thông báo); chưa chạy với backend/MySQL thật; app điện thoại nhân viên không bị ảnh hưởng.
+- Bước 18: gom script ẩn trang vào thư mục scripts/an-trang/ (an-trang.js + HUONG-DAN.md). Lệnh mới: node scripts/an-trang/an-trang.js ds|an|hien|hien-het; đã cập nhật mọi chỗ nhắc tới đường dẫn cũ.

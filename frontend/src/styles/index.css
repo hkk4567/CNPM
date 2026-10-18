@@ -266,3 +266,11 @@ table.bang.bang-nho th { white-space: nowrap; }
   .panel-hoa-don { position: absolute; left: 0; top: 0; width: 100%; max-height: none; overflow: visible; border: 0; box-shadow: none; padding: 0; }
   .khong-in { display: none !important; }
 }
+
+/* ---------- Trang/tab không khả dụng (scripts/an-trang/an-trang.js) ---------- */
+.menu-muc.khoa:not(.active), .vien-tab.khoa:not(.active) { color: var(--muted); border-style: dashed; }
+.menu-muc.khoa:not(.active) { border: 0; }
+.menu-muc.khoa .dau-khoa { margin-left: auto; }
+.vien-tab.khoa .dau-khoa { margin-left: 8px; }
+.dau-khoa { display: inline-flex; color: var(--muted); }
+.vien-tab.khoa.active .dau-khoa { color: #fff; }

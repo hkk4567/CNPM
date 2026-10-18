@@ -61,6 +61,7 @@ await trang.route('**/api/**', route => {
       : json(route, { ok: false, loi: 'SAI_THONG_TIN', thong_bao: 'Sai tên đăng nhập hoặc mật khẩu' }, 401);
   }
   if (p === '/auth/toi') return json(route, { ok: true, data: nguoi });
+  if (p === '/he-thong/trang-an') return json(route, { ok: true, data: { trang_an: {} } }); // không ẩn trang nào (phần ẩn trang có smoke-trang-an.mjs riêng)
   if (p === '/danh-muc') return json(route, { ok: true, data: [['Cà phê', 3, 1], ['Trà', 2, 2], ['Sinh tố', 1, 3], ['Bánh', 2, 4]].map(([t, n, m]) => ({ ma_danh_muc: m, ten_danh_muc: t, so_san_pham: n })) });
   if (p === '/san-pham/menu') return json(route, { ok: true, data: sp.filter(s => s.trang_thai === 'con_ban').map(s => ({ ...s, so_ly_toi_da: s.ma_san_pham <= 3 ? 133 : null, khuyen_mai: s.ma_san_pham <= 3 ? [{ ma_khuyen_mai: 1, ten_khuyen_mai: 'Giảm 10%', muc_giam_moi_ly: 2900 }] : [] })) });
   if (p === '/san-pham' && pt === 'GET') {

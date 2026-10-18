@@ -1,7 +1,8 @@
 // Màn Báo cáo (BC-01..BC-06): 6 tab, một hàng bộ lọc chung phía trên (áp cho mọi số liệu bên dưới), bấm "Xem báo cáo" mới tải lại.
 // Bộ lọc nằm ở đây (không ở từng tab) nên đổi tab vẫn giữ nguyên khoảng ngày.
 import { useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
+import { NoiDungTab, VienTab } from '../../components/TabAn.jsx';
 import DoanhThu from './DoanhThu.jsx';
 import ChiPhiDoanhThu from './ChiPhiDoanhThu.jsx';
 import XepHang, { CAU_HINH } from './XepHang.jsx';
@@ -32,9 +33,10 @@ export default function BaoCao() {
       <div className="dau-trang"><div><h1>Báo cáo</h1><p>Chỉ tính các hóa đơn đã thanh toán, theo ngày thanh toán.</p></div></div>
 
       <nav className="the-tab" aria-label="Các báo cáo">
-        {TAB.map(t => <Link key={t.khoa} to={t.khoa === 'doanh-thu' ? '/bao-cao' : `/bao-cao/${t.khoa}`} className={`vien-tab${t.khoa === tab ? ' active' : ''}`} aria-current={t.khoa === tab ? 'page' : undefined}>{t.nhan}</Link>)}
+        {TAB.map(t => <VienTab key={t.khoa} ma={`bao-cao/${t.khoa}`} to={t.khoa === 'doanh-thu' ? '/bao-cao' : `/bao-cao/${t.khoa}`} dangChon={t.khoa === tab}>{t.nhan}</VienTab>)}
       </nav>
 
+      <NoiDungTab ma={`bao-cao/${tab}`}>
       <form className="bo-loc bo-loc-bc" onSubmit={e => { e.preventDefault(); if (!sai) setAp(nhap); }} noValidate>
         <div className="truong"><label htmlFor="bc-tu">Từ ngày</label><input id="bc-tu" className="o-nhap" type="date" value={nhap.tu} onChange={dat('tu')} aria-invalid={!!sai} /></div>
         <div className="truong"><label htmlFor="bc-den">Đến ngày</label><input id="bc-den" className="o-nhap" type="date" value={nhap.den} onChange={dat('den')} aria-invalid={!!sai} /></div>
@@ -58,6 +60,7 @@ export default function BaoCao() {
       <p className="goi-y" style={{ marginTop: -8 }}>Để trống một hoặc cả hai ngày = không giới hạn đầu đó.</p>
 
       <Tab key={tab} loc={loc} cauHinh={hienTai.cauHinh ? CAU_HINH[hienTai.cauHinh] : undefined} />
+      </NoiDungTab>
     </>
   );
 }

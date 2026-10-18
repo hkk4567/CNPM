@@ -22,5 +22,6 @@ router.use('/hoa-don', require('./modules/hoa-don/hoa-don.routes'));
 router.use('/kho', require('./modules/kho/kho.routes'));
 router.use('/nhan-su', require('./modules/nhan-su/nhan-su.routes'));
 router.use('/bao-cao', require('./modules/bao-cao/bao-cao.routes'));
+router.use('/he-thong', require('./modules/he-thong/he-thong.routes'));
 
 module.exports = router;

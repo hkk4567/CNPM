@@ -1,5 +1,6 @@
 // Cụm Kho: /kho (tồn kho), /kho/nguyen-lieu, /kho/lich-su-nhap, /kho/nha-cung-cap. Menu "Nhập hàng" mở thẳng tab lịch sử nhập.
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
+import { NoiDungTab, VienTab } from '../../components/TabAn.jsx';
 import TonKhoTab from './TonKhoTab.jsx';
 import NguyenLieuTab from './NguyenLieuTab.jsx';
 import LichSuNhapTab from './LichSuNhapTab.jsx';
@@ -22,9 +23,9 @@ export default function Kho() {
     <>
       <div className="dau-trang"><div><h1>{hienTai.tieuDe}</h1><p>{hienTai.phu}</p></div></div>
       <nav className="the-tab" aria-label="Các mục của kho">
-        {TAB.map(t => <Link key={t.khoa} to={duongDan(t.khoa)} className={`vien-tab${t.khoa === tab ? ' active' : ''}`} aria-current={t.khoa === tab ? 'page' : undefined}>{t.nhan}</Link>)}
+        {TAB.map(t => <VienTab key={t.khoa} ma={`kho/${t.khoa}`} to={duongDan(t.khoa)} dangChon={t.khoa === tab}>{t.nhan}</VienTab>)}
       </nav>
-      <Tab key={tab} />
+      <NoiDungTab ma={`kho/${tab}`}><Tab key={tab} /></NoiDungTab>
     </>
   );
 }
