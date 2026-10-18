@@ -15,6 +15,8 @@ const dsRong = { ok: true, data: [], tong_so_ban_ghi: 0, trang: 1, moi_trang: 10
 
 let trangAn = {};          // giả lập nội dung backend/config/trang-an.json
 let loiHeThong = false;    // true: endpoint he-thong trả 500
+let treoHeThong = false;   // true: endpoint he-thong không bao giờ trả lời (máy chủ treo)
+let chuaCoEndpoint = false; // true: backend bản cũ, chưa có /he-thong (404)
 let soLanHoi = 0;
 const luc = '2026-10-18T02:50:33.007Z';
 
@@ -22,7 +24,7 @@ const trinhDuyet = await chromium.launch();
 const trang = await trinhDuyet.newPage({ viewport: { width: 1360, height: 900 } });
 const loiConsole = [];
 trang.on('pageerror', e => loiConsole.push(e.message));
-trang.on('console', m => { if (m.type() === 'error' && !/ERR_TUNNEL|ERR_NAME|fonts\.g|500/.test(m.text())) loiConsole.push(m.text()); });
+trang.on('console', m => { if (m.type() === 'error' && !/ERR_TUNNEL|ERR_NAME|fonts\.g|500|404/.test(m.text())) loiConsole.push(m.text()); });
 
 await trang.route('**/api/**', route => {
   const p = new URL(route.request().url()).pathname.replace(/^.*\/api/, '');
@@ -30,6 +32,8 @@ await trang.route('**/api/**', route => {
   if (p === '/auth/toi') return json(route, { ok: true, data: nguoi });
   if (p === '/he-thong/trang-an') {
     soLanHoi++;
+    if (treoHeThong) return undefined; // để yêu cầu treo
+    if (chuaCoEndpoint) return json(route, { ok: false, loi: 'KHONG_TIM_THAY', thong_bao: 'Không tìm thấy GET /he-thong/trang-an' }, 404);
     return loiHeThong ? json(route, { ok: false, loi: 'LOI_HE_THONG', thong_bao: 'Lỗi hệ thống' }, 500) : json(route, { ok: true, data: { trang_an: trangAn } });
   }
   if (p === '/kho/ton-kho') return json(route, { ok: true, data: [] });
@@ -140,6 +144,24 @@ await menu('Nhân viên').click();
 await trang.getByText('Bảo trì.', { exact: true }).waitFor();
 kiemTra(true, 'endpoint lỗi 500: danh sách đang ẩn được giữ nguyên (không mở nhầm trang đang bảo trì)');
 loiHeThong = false; trangAn = {};
+
+// ---- Máy chủ treo: sau 5 giây bỏ chờ, trang vẫn mở được (không kẹt "Đang tải…") ----
+treoHeThong = true;
+await trang.goto(`${GOC}/hoa-don`);
+await trang.getByText('Đang tải…').first().waitFor();
+await trang.clock.fastForward(6000);
+await trang.getByRole('heading', { name: 'Hóa đơn', level: 1 }).waitFor();
+kiemTra(true, 'endpoint treo: sau 5 giây trang vẫn mở bình thường');
+treoHeThong = false;
+
+// ---- Backend bản cũ chưa có endpoint (404): web vẫn dùng bình thường ----
+chuaCoEndpoint = true;
+await trang.goto(`${GOC}/san-pham`);
+await trang.getByRole('heading', { name: 'Sản phẩm', level: 1 }).waitFor();
+await menu('Nhân viên').click();
+await trang.getByRole('heading', { name: 'Nhân viên', level: 1 }).waitFor();
+kiemTra(await coThongBao() === 0 && await trang.locator('.menu-muc.khoa').count() === 0, 'backend chưa có endpoint (404): không ẩn gì, mọi trang dùng bình thường');
+chuaCoEndpoint = false;
 
 // ---- Điện thoại ----
 await trang.setViewportSize({ width: 390, height: 800 });

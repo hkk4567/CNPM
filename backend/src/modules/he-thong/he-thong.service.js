@@ -6,16 +6,19 @@ const { loi } = require('../../utils/loi-nghiep-vu');
 const LY_DO_MAC_DINH = 'Trang đang được bảo trì, vui lòng quay lại sau.';
 const LY_DO_TOI_DA = 200;
 
-// Danh sách đang ẩn cho frontend. File hỏng thì coi như không ẩn gì (không làm sập web), chỉ cảnh báo ở console backend.
+// Danh sách đang ẩn cho frontend. Đọc lỗi (file hỏng, hoặc đang bị khóa tạm thời trên Windows lúc script đổi tên file) thì trả về
+// bản đọc tốt gần nhất (khởi động mà file hỏng = không ẩn gì), để trang đang ẩn không bị mở nhầm; chỉ cảnh báo ở console backend.
+let docTotCuoi = {};
 function layTrangAn() {
-  try { return repo.doc(); } catch (e) {
-    console.warn(`[he-thong] Không đọc được ${repo.duongDan()}: ${e.message}. Coi như không ẩn trang nào.`);
-    return {};
+  try { docTotCuoi = repo.doc(); } catch (e) {
+    console.warn(`[he-thong] Không đọc được ${repo.duongDan()}: ${e.message}. Giữ danh sách đọc được lần trước.`);
   }
+  return docTotCuoi;
 }
 
 // Mã "kho/lich-su-nhap" bị ẩn nếu chính nó hoặc trang cha "kho" có trong danh sách. Trả về { ma_an, ly_do, luc } hoặc null.
 function timTrangAn(trangAn, ma) {
+  if (typeof ma !== 'string' || !ma) return null;
   const cha = ma.includes('/') ? ma.split('/')[0] : null;
   for (const m of [ma, cha]) if (m && trangAn[m]) return { ma_an: m, ...trangAn[m] };
   return null;

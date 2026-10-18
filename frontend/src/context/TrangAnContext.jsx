@@ -7,6 +7,7 @@ import { trangAn as apiTrangAn } from '../api/he-thong.api.js';
 import { timTrangAn } from '../utils/trang-an.js';
 
 export const CHU_KY_MS = 30000;
+const CHO_TOI_DA_MS = 5000; // quá hạn thì bỏ chờ (lần đầu = coi như không ẩn gì), tránh treo "Đang tải…" khi máy chủ chậm/treo
 const TrangAnContext = createContext({ daTai: true, timAn: () => null, lamMoi: async () => {} });
 
 export function TrangAnProvider({ children }) {
@@ -19,12 +20,13 @@ export function TrangAnProvider({ children }) {
 
   const lamMoi = useCallback(async () => {
     const lan = ++lanGoi.current;
+    let dong;
     try {
-      const d = await apiTrangAn();
+      const d = await Promise.race([apiTrangAn(), new Promise((_, tu) => { dong = setTimeout(() => tu(new Error('het gio')), CHO_TOI_DA_MS); })]);
       if (lan !== lanGoi.current) return; // đã có lần gọi mới hơn
       const moi = d?.trang_an ?? {};
       setTrangAn(cu => (JSON.stringify(cu) === JSON.stringify(moi) ? cu : moi));
-    } catch { /* giữ nguyên danh sách cũ */ }
+    } catch { /* giữ nguyên danh sách cũ */ } finally { clearTimeout(dong); }
     if (lan === lanGoi.current) setDaTai(true);
   }, []);
 

@@ -74,12 +74,21 @@ test('service: ẩn trang cha thì mọi tab con bị ẩn; hiện tab con khôn
   assert.equal(service.timTrangAn(ds2, 'kho/nguyen-lieu'), null);
 });
 
-test('service: file hỏng -> đọc coi như không ẩn; ghi từ chối để không đè mất dữ liệu', () => {
+test('service: file hỏng -> giữ bản đọc tốt gần nhất (không mở nhầm trang đang ẩn); ghi từ chối để không đè mất dữ liệu', () => {
+  service.an(['kho/lich-su-nhap']);
+  assert.deepEqual(Object.keys(service.layTrangAn()), ['kho/lich-su-nhap']);
   fs.writeFileSync(file, '{ hong');
   const warn = console.warn; console.warn = () => {};
-  try { assert.deepEqual(service.layTrangAn(), {}); } finally { console.warn = warn; }
+  try { assert.deepEqual(Object.keys(service.layTrangAn()), ['kho/lich-su-nhap']); } finally { console.warn = warn; }
   assert.throws(() => service.an(['kho']));
   assert.equal(fs.readFileSync(file, 'utf8'), '{ hong');
+});
+
+test('service: vừa khởi động mà file hỏng -> không ẩn gì, không làm sập; mã rỗng không gây lỗi', () => {
+  fs.writeFileSync(file, '{ hong');
+  const r = spawnSync(process.execPath, ['-e', "const s=require('./src/modules/he-thong/he-thong.service');console.log(JSON.stringify(s.layTrangAn()));console.log(JSON.stringify(s.timTrangAn({a:{}},undefined)))"], { env: process.env, encoding: 'utf8', cwd: path.join(__dirname, '..') });
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(r.stdout.trim().split('\n'), ['{}', 'null']);
 });
 
 test('endpoint GET /api/he-thong/trang-an: cần đăng nhập, trả danh sách đang ẩn', async () => {

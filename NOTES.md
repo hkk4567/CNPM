@@ -438,3 +438,12 @@
 **Kiểm thử:** `frontend/scripts/smoke-trang-an.mjs` (mới) – 27/27 đạt: menu mờ/khóa, thông báo + lý do, gõ thẳng URL, ẩn tab Lịch sử nhập, ẩn tab Báo cáo chi phí (mất cả bộ lọc), ẩn trang cha chặn cả tab con, tự hỏi lại sau 30 giây, nút Kiểm tra lại, endpoint 500 giữ nguyên trạng thái, điện thoại không cuộn ngang, không lỗi console. `smoke-ui.mjs` (thêm mock `/he-thong/trang-an`) vẫn 90/90. Backend `tests/he-thong.test.js` 7/7. Ảnh: anh-smoke/20..23-trang-an-*.png. Chạy lại: `cd frontend && npm run build && (npx vite preview --port 4173 &) && node scripts/smoke-trang-an.mjs`.
 **Giới hạn:** chỉ ẩn ở giao diện (API không bị khóa, theo quyết định ở Bước 16); người đang nhập dở form trong trang vừa bị ẩn sẽ mất phần chưa lưu (trang bị thay bằng thông báo); chưa chạy với backend/MySQL thật; app điện thoại nhân viên không bị ảnh hưởng.
 - Bước 18: gom script ẩn trang vào thư mục scripts/an-trang/ (an-trang.js + HUONG-DAN.md). Lệnh mới: node scripts/an-trang/an-trang.js ds|an|hien|hien-het; đã cập nhật mọi chỗ nhắc tới đường dẫn cũ.
+
+
+## Bước 19 – Rà soát ảnh hưởng của chức năng ẩn trang (mobile và các chức năng khác)
+- So sánh bản gốc với bản hiện tại: thư mục `mobile/` KHÔNG đổi file nào, không có chữ "he-thong" trong mobile. Backend chỉ sửa đúng 1 dòng (`routes.js`, gắn /api/he-thong) + file mới; bảng route của app thật (72 route) chỉ thêm đúng 1 route `GET /api/he-thong/trang-an`, mọi route cũ giữ nguyên.
+- Frontend: chỉ sửa menu, 9 route, 4 trang có thanh tab, App.jsx, Icon, CSS; `smoke-ui.mjs` 90/90 (chức năng cũ không hỏng), `smoke-trang-an.mjs` 29/29.
+- Rủi ro tìm thấy và đã xử lý: (1) máy chủ treo ở /he-thong làm kẹt "Đang tải…" -> thêm giới hạn chờ 5 giây, quá hạn thì mở trang bình thường; (2) đọc file lỗi tạm thời (Windows khóa file lúc script đổi tên) làm trang đang ẩn bị mở nhầm 30 giây -> backend giữ bản đọc tốt gần nhất; (3) mã trang rỗng làm hàm tìm ẩn lỗi -> trả null. Đã thêm test cho cả ba (backend 8/8; frontend: kịch bản treo và 404).
+- Backend cũ chưa có endpoint (404) hoặc lỗi 500: web không ẩn gì và dùng bình thường (đã test).
+- Không có đường nào làm admin bị khóa khỏi hệ thống: đăng nhập, đổi mật khẩu, đăng xuất không thuộc danh sách có thể ẩn; ẩn xong gỡ bằng `node scripts/an-trang/an-trang.js hien-het` (không cần web/DB).
+- Chưa kiểm tra được: bộ test backend đầy đủ (cần MySQL, sandbox không có; chạy `cd backend && npm test` trên máy có XAMPP), app điện thoại chạy thật.
